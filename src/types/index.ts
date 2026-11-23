@@ -99,6 +99,10 @@ export interface LinkInfoResult {
 
 export type SyncState = 'saved' | 'saving' | 'offline' | 'synced' | 'error';
 
+export type DeviceMode = 'auto' | 'pc' | 'phone' | 'ipad' | 'tv';
+
+export type ActiveEngine = 'audio' | 'youtube' | 'gdrive' | 'soundcloud' | 'spotify';
+
 export interface PlayerState {
   currentTrackId: string | null;
   isPlaying: boolean;
@@ -110,6 +114,11 @@ export interface PlayerState {
   loop: boolean;
   loading: boolean;
   error: string | null;
+  activeEngine: ActiveEngine;
+  youtubeId: string | null;
+  gdriveId: string | null;
+  soundcloudUrl: string | null;
+  spotifyId: string | null;
 }
 
 export interface ServerInfo {

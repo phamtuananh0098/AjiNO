@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import type { Section, Track, WeddingSide } from './types';
+import type { Section, Track, WeddingSide, DeviceMode } from './types';
 import { ToastProvider } from './state/toastContext';
 import { PlaylistProvider, usePlaylist } from './state/playlistContext';
 import { PlayerProvider } from './state/playerContext';
@@ -8,6 +8,7 @@ import { Header } from './components/Header';
 import { WeddingInfoBar } from './components/WeddingInfoBar';
 import { DualSideView } from './components/DualSideView';
 import { StudioConsole } from './components/StudioConsole';
+import { TVStageView } from './components/TVStageView';
 import { AddTrackModal } from './components/Modals/AddTrackModal';
 import { EditTrackModal } from './components/Modals/EditTrackModal';
 import { GoogleDriveModal } from './components/Modals/GoogleDriveModal';
@@ -18,6 +19,24 @@ import { PrintCueSheetModal } from './components/Modals/PrintCueSheetModal';
 
 function WeddingStudioApp() {
   const { playlist } = usePlaylist();
+
+  // Device view mode: 'pc' | 'phone' | 'ipad' | 'tv' | 'auto'
+  const [deviceMode, setDeviceModeState] = useState<DeviceMode>(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('duyen_ca_device_mode') as DeviceMode;
+      if (saved) return saved;
+      if (window.innerWidth <= 768) return 'phone';
+      if (window.innerWidth <= 1024) return 'ipad';
+    }
+    return 'pc';
+  });
+
+  const handleSelectDevice = (mode: DeviceMode) => {
+    setDeviceModeState(mode);
+    try {
+      localStorage.setItem('duyen_ca_device_mode', mode);
+    } catch {}
+  };
 
   // Modals state
   const [showConfigModal, setShowConfigModal] = useState(false);
@@ -62,12 +81,25 @@ function WeddingStudioApp() {
     setShowEditTrackModal(true);
   };
 
+  // Fullscreen TV Stage View Mode
+  if (deviceMode === 'tv') {
+    return (
+      <div className="app-layout app-layout--tv">
+        <ToastContainer />
+        <TVStageView onExitTv={() => handleSelectDevice('pc')} />
+        <StudioConsole />
+      </div>
+    );
+  }
+
   return (
-    <div className="app-layout">
+    <div className={`app-layout app-layout--${deviceMode}`}>
       <ToastContainer />
 
       {/* Top Header */}
       <Header
+        deviceMode={deviceMode}
+        onSelectDevice={handleSelectDevice}
         onOpenConfig={() => setShowConfigModal(true)}
         onOpenQR={() => setShowQRModal(true)}
         onOpenPrint={() => setShowPrintModal(true)}

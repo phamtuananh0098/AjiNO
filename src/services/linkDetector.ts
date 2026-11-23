@@ -66,6 +66,12 @@ function slugToWords(slug: string): string {
     .join(' ');
 }
 
+export function extractYoutubeId(url?: string): string | null {
+  if (!url) return null;
+  const m = url.match(/(?:youtu\.be\/|youtube\.com\/(?:embed\/|v\/|watch\?v=|watch\?.+&v=|shorts\/))([\w-]{11})/i);
+  return m ? m[1] : null;
+}
+
 export function extractDriveFileId(input?: string): string | null {
   if (!input) return null;
   const str = String(input).trim();
@@ -79,6 +85,30 @@ export function extractDriveFileId(input?: string): string | null {
     return str;
   }
   return null;
+}
+
+export function extractSpotifyTrackId(url?: string): string | null {
+  if (!url) return null;
+  const m = url.match(/open\.spotify\.com\/(?:track|intl-[a-z]{2}\/track)\/([a-zA-Z0-9]{15,30})/i);
+  return m ? m[1] : null;
+}
+
+export function extractSoundcloudUrl(url?: string): string | null {
+  if (!url) return null;
+  if (/soundcloud\.com\/[\w-]+\/[\w-]+/i.test(url)) {
+    return url.split('?')[0];
+  }
+  return null;
+}
+
+export function isDirectAudioUrl(url?: string): boolean {
+  if (!url) return false;
+  return /\.(mp3|wav|m4a|aac|ogg|oga|opus|flac|webm)($|\?)/i.test(url);
+}
+
+export function getSearchAutoplayUrl(title: string, artist = ''): string {
+  const query = `${title} ${artist}`.trim();
+  return `https://www.youtube-nocookie.com/embed?listType=search&list=${encodeURIComponent(query)}&autoplay=1&enablejsapi=1`;
 }
 
 export function getDrivePlayableUrl(fileIdOrUrl: string): string {

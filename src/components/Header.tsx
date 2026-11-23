@@ -1,4 +1,5 @@
 import React, { useRef } from 'react';
+import type { DeviceMode } from '../types';
 import { usePlaylist } from '../state/playlistContext';
 import {
   CloudCheckIcon,
@@ -17,6 +18,8 @@ interface HeaderProps {
   onOpenQR: () => void;
   onOpenPrint: () => void;
   onOpenDrive: () => void;
+  deviceMode: DeviceMode;
+  onSelectDevice: (mode: DeviceMode) => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -24,6 +27,8 @@ export const Header: React.FC<HeaderProps> = ({
   onOpenQR,
   onOpenPrint,
   onOpenDrive,
+  deviceMode,
+  onSelectDevice,
 }) => {
   const { playlist, syncState, clientCount, exportProject, importProject } = usePlaylist();
   const fileInputRef = useRef<HTMLInputElement | null>(null);
@@ -63,6 +68,42 @@ export const Header: React.FC<HeaderProps> = ({
 
         {/* Right: Sync Status & Action Bar */}
         <div className="header-actions">
+          {/* Device View Mode Switcher */}
+          <div className="device-switcher-pill" title="Chuyển đổi giao diện phù hợp với từng thiết bị">
+            <button
+              type="button"
+              className={`device-btn ${deviceMode === 'pc' ? 'active' : ''}`}
+              onClick={() => onSelectDevice('pc')}
+              title="Giao diện chuẩn Máy tính (PC / Laptop)"
+            >
+              <span>💻 PC</span>
+            </button>
+            <button
+              type="button"
+              className={`device-btn ${deviceMode === 'phone' ? 'active' : ''}`}
+              onClick={() => onSelectDevice('phone')}
+              title="Giao diện Điện thoại (Phone)"
+            >
+              <span>📱 Phone</span>
+            </button>
+            <button
+              type="button"
+              className={`device-btn ${deviceMode === 'ipad' ? 'active' : ''}`}
+              onClick={() => onSelectDevice('ipad')}
+              title="Giao diện Máy tính bảng (iPad / Tablet)"
+            >
+              <span>📱 iPad</span>
+            </button>
+            <button
+              type="button"
+              className={`device-btn device-btn--tv ${deviceMode === 'tv' ? 'active' : ''}`}
+              onClick={() => onSelectDevice('tv')}
+              title="Chế độ Sân khấu / Smart TV / Màn hình LED lớn"
+            >
+              <span>📺 TV Sân Khấu</span>
+            </button>
+          </div>
+
           {/* Sync status indicator */}
           <div className={`sync-pill sync-pill--${syncState}`}>
             {syncState === 'saving' ? (

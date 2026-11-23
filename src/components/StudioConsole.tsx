@@ -32,7 +32,11 @@ export const StudioConsole: React.FC = () => {
     mode,
     loop,
     loading,
+    activeEngine,
     youtubeId,
+    gdriveId,
+    soundcloudUrl,
+    spotifyId,
     togglePlay,
     stop,
     seek,
@@ -282,19 +286,62 @@ export const StudioConsole: React.FC = () => {
       </div>
 
       {/* Embedded YouTube Audio Player for Studio */}
-      <div className={`console-yt-box ${youtubeId ? 'console-yt-box--active' : ''}`}>
+      <div className={`console-yt-box ${activeEngine === 'youtube' && youtubeId ? 'console-yt-box--active' : ''}`}>
         <iframe
           id="duyen-ca-console-yt-player"
           src={
             youtubeId
-              ? `https://www.youtube-nocookie.com/embed/${youtubeId}?enablejsapi=1&autoplay=1&start=${Math.floor(
-                  mode === 'clip' ? currentTrack.trimStart || 0 : 0
-                )}`
+              ? youtubeId.startsWith('search:')
+                ? `https://www.youtube-nocookie.com/embed?listType=search&list=${youtubeId.replace('search:', '')}&autoplay=1&enablejsapi=1`
+                : `https://www.youtube-nocookie.com/embed/${youtubeId}?enablejsapi=1&autoplay=1&start=${Math.floor(
+                    mode === 'clip' ? currentTrack.trimStart || 0 : 0
+                  )}`
               : 'about:blank'
           }
           allow="autoplay; encrypted-media"
           title="Studio YouTube Player"
           className="console-yt-iframe"
+        />
+      </div>
+
+      {/* Embedded Google Drive Audio Player for Studio */}
+      <div className={`console-gdrive-box ${activeEngine === 'gdrive' && gdriveId ? 'console-gdrive-box--active' : ''}`}>
+        <div className="console-gdrive-header">
+          <span className="link-platform-tag">GOOGLE DRIVE AUDIO</span>
+          <span className="console-gdrive-label">▶ Đang phát âm thanh trực tiếp</span>
+        </div>
+        <iframe
+          id="duyen-ca-console-gdrive-player"
+          src={gdriveId ? `https://drive.google.com/file/d/${gdriveId}/preview` : 'about:blank'}
+          allow="autoplay"
+          title="Studio Google Drive Player"
+          className="console-gdrive-iframe"
+        />
+      </div>
+
+      {/* Embedded SoundCloud Player */}
+      <div className={`console-sc-box ${activeEngine === 'soundcloud' && soundcloudUrl ? 'console-sc-box--active' : ''}`}>
+        <iframe
+          id="duyen-ca-console-sc-player"
+          src={
+            soundcloudUrl
+              ? `https://w.soundcloud.com/player/?url=${encodeURIComponent(soundcloudUrl)}&auto_play=true&hide_related=true&show_comments=false&show_user=true&show_reposts=false&show_teaser=false&visual=false`
+              : 'about:blank'
+          }
+          allow="autoplay"
+          title="Studio SoundCloud Player"
+          className="console-sc-iframe"
+        />
+      </div>
+
+      {/* Embedded Spotify Player */}
+      <div className={`console-spotify-box ${activeEngine === 'spotify' && spotifyId ? 'console-spotify-box--active' : ''}`}>
+        <iframe
+          id="duyen-ca-console-spotify-player"
+          src={spotifyId ? `https://open.spotify.com/embed/track/${spotifyId}?utm_source=generator&theme=0` : 'about:blank'}
+          allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture"
+          title="Studio Spotify Player"
+          className="console-spotify-iframe"
         />
       </div>
     </footer>
