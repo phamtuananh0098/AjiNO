@@ -74,12 +74,27 @@ export interface Preferences {
 
 export interface PlaylistData {
   version: 1;
+  isDefault?: boolean;
   meta: WeddingMeta;
   sections: Section[];
   tracks: Track[];
   preferences: Preferences;
   updatedAt: number;
   revision: number;
+}
+
+export interface LinkInfoResult {
+  ok: boolean;
+  title?: string;
+  artist?: string;
+  thumbnail?: string;
+  duration?: number | null;
+  platform?: AudioPlatform | 'youtube' | 'spotify' | 'soundcloud' | 'zingmp3';
+  embedUrl?: string;
+  streamUrl?: string;
+  sourceUrl?: string;
+  description?: string;
+  error?: string;
 }
 
 export type SyncState = 'saved' | 'saving' | 'offline' | 'synced' | 'error';

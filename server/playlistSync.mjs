@@ -3,6 +3,7 @@ import { DATA_DIR, PLAYLIST_FILE } from './paths.mjs';
 
 export const DEFAULT_PLAYLIST = {
   version: 1,
+  isDefault: true,
   meta: {
     title: 'Lễ Thành Hôn & Dạ Tiệc Cưới',
     couple: 'Minh Quân & Thùy Dung',
@@ -166,8 +167,8 @@ export const DEFAULT_PLAYLIST = {
     defaultFade: 2,
     preferredSideView: 'split',
   },
-  updatedAt: Date.now(),
-  revision: 1,
+  updatedAt: 0,
+  revision: 0,
 };
 
 let currentPlaylist = null;
@@ -198,7 +199,7 @@ export async function ensurePlaylistLoaded() {
       throw new Error('Dữ liệu không hợp lệ');
     }
   } catch {
-    currentPlaylist = { ...DEFAULT_PLAYLIST, updatedAt: Date.now(), revision: 1 };
+    currentPlaylist = { ...DEFAULT_PLAYLIST, isDefault: true, updatedAt: 0, revision: 0 };
     await writeFile(PLAYLIST_FILE, JSON.stringify(currentPlaylist, null, 2), 'utf8');
   }
   return currentPlaylist;
@@ -209,6 +210,7 @@ export async function savePlaylist(newData) {
   const revision = (currentPlaylist?.revision || 0) + 1;
   currentPlaylist = {
     ...newData,
+    isDefault: false,
     revision,
     updatedAt: Date.now(),
   };

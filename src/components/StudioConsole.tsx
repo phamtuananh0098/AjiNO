@@ -32,6 +32,7 @@ export const StudioConsole: React.FC = () => {
     mode,
     loop,
     loading,
+    youtubeId,
     togglePlay,
     stop,
     seek,
@@ -107,6 +108,17 @@ export const StudioConsole: React.FC = () => {
       <div className="console-content">
         {/* Left: Current Track Details & Side Badge */}
         <div className="console-track-info">
+          {currentTrack.thumbnail && (
+            <img
+              src={currentTrack.thumbnail}
+              alt=""
+              className="console-thumb-img"
+              loading="lazy"
+              onError={(e) => {
+                (e.currentTarget as HTMLElement).style.display = 'none';
+              }}
+            />
+          )}
           <div className="console-meta-left">
             <div className="console-tags-row">
               {/* Wedding Side Tag */}
@@ -127,6 +139,17 @@ export const StudioConsole: React.FC = () => {
               <span className="console-title">{currentTrack.title}</span>
               {currentTrack.artist && (
                 <span className="console-artist">· {currentTrack.artist}</span>
+              )}
+              {currentTrack.url && /^https?:\/\//i.test(currentTrack.url) && (
+                <a
+                  href={currentTrack.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="console-ext-link"
+                  title="Mở liên kết gốc bài hát (YouTube, Spotify, Web...)"
+                >
+                  🔗 Mở nguồn ↗
+                </a>
               )}
             </div>
 
@@ -256,6 +279,23 @@ export const StudioConsole: React.FC = () => {
             {Math.round((isMuted ? 0 : volume) * 100)}%
           </span>
         </div>
+      </div>
+
+      {/* Embedded YouTube Audio Player for Studio */}
+      <div className={`console-yt-box ${youtubeId ? 'console-yt-box--active' : ''}`}>
+        <iframe
+          id="duyen-ca-console-yt-player"
+          src={
+            youtubeId
+              ? `https://www.youtube-nocookie.com/embed/${youtubeId}?enablejsapi=1&autoplay=1&start=${Math.floor(
+                  mode === 'clip' ? currentTrack.trimStart || 0 : 0
+                )}`
+              : 'about:blank'
+          }
+          allow="autoplay; encrypted-media"
+          title="Studio YouTube Player"
+          className="console-yt-iframe"
+        />
       </div>
     </footer>
   );

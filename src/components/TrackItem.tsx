@@ -97,6 +97,18 @@ export const TrackItem: React.FC<TrackItemProps> = ({ track, index, onEdit }) =>
 
         <span className="track-order-num">{index + 1}</span>
 
+        {track.thumbnail && (
+          <img
+            src={track.thumbnail}
+            alt=""
+            className="track-thumb-cover"
+            loading="lazy"
+            onError={(e) => {
+              (e.currentTarget as HTMLElement).style.display = 'none';
+            }}
+          />
+        )}
+
         {/* Title, Artist & Cue */}
         <div className="track-info">
           <div className="track-title-row">
@@ -215,6 +227,20 @@ export const TrackItem: React.FC<TrackItemProps> = ({ track, index, onEdit }) =>
         >
           <HeartIcon fillHeart={track.favorite} />
         </button>
+
+        {/* Open original link */}
+        {track.url && /^https?:\/\//i.test(track.url) && (
+          <a
+            href={track.url}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="icon-action-btn"
+            title="Mở liên kết gốc (YouTube, Spotify, ZingMP3...)"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <LinkIcon />
+          </a>
+        )}
 
         {/* Move to another section */}
         {playlist.sections.length > 1 && (

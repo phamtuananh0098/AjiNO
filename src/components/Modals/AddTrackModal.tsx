@@ -1,8 +1,9 @@
 import React, { useState, useRef, useEffect } from 'react';
-import type { AudioPlatform, Section, WeddingSide } from '../../types';
+import type { AudioPlatform, Section, WeddingSide, LinkInfoResult } from '../../types';
 import { usePlaylist } from '../../state/playlistContext';
 import { useToast } from '../../state/toastContext';
-import { uploadAudioFile, importGoogleDriveAudio } from '../../services/api';
+import { uploadAudioFile, importGoogleDriveAudio, fetchLinkInfo } from '../../services/api';
+import { detectLinkMetadata, extractDriveFileId } from '../../services/linkDetector';
 import { parseFilenameToMeta, probeAudioDuration } from '../../services/audioScanner';
 import {
   LaptopIcon,
@@ -12,6 +13,8 @@ import {
   CloseIcon,
   UploadIcon,
   CheckIcon,
+  SparklesIcon,
+  MusicIcon,
 } from '../common/Icons';
 
 interface AddTrackModalProps {
@@ -32,7 +35,7 @@ export const AddTrackModal: React.FC<AddTrackModalProps> = ({
   const { addTrack } = usePlaylist();
   const { pushToast } = useToast();
 
-  const [platformTab, setPlatformTab] = useState<AudioPlatform>('local');
+  const [platformTab, setPlatformTab] = useState<AudioPlatform>('link');
   const [side, setSide] = useState<WeddingSide>(defaultSide);
   const [targetSectionId, setTargetSectionId] = useState<string>(
     defaultSectionId || sections[0]?.id || ''
@@ -42,15 +45,20 @@ export const AddTrackModal: React.FC<AddTrackModalProps> = ({
   const [artist, setArtist] = useState('');
   const [note, setNote] = useState('');
   const [url, setUrl] = useState('');
+  const [thumbnail, setThumbnail] = useState<string>('');
   const [duration, setDuration] = useState<number | null>(null);
   const [trimStart, setTrimStart] = useState<number>(0);
   const [trimEnd, setTrimEnd] = useState<number | null>(null);
 
   const [isUploading, setIsUploading] = useState(false);
+  const [isDetecting, setIsDetecting] = useState(false);
+  const [detectedInfo, setDetectedInfo] = useState<LinkInfoResult | null>(null);
+  const [detectStatusMsg, setDetectStatusMsg] = useState<string>('');
   const [uploadedAudioId, setUploadedAudioId] = useState<string | null>(null);
   const [selectedFileName, setSelectedFileName] = useState<string>('');
 
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const debounceTimerRef = useRef<any>(null);
 
   useEffect(() => {
     if (open) {
@@ -58,6 +66,12 @@ export const AddTrackModal: React.FC<AddTrackModalProps> = ({
       if (defaultSectionId) setTargetSectionId(defaultSectionId);
     }
   }, [open, defaultSide, defaultSectionId]);
+
+  useEffect(() => {
+    return () => {
+      if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current);
+    };
+  }, []);
 
   if (!open) return null;
 
@@ -87,12 +101,140 @@ export const AddTrackModal: React.FC<AddTrackModalProps> = ({
       } else {
         const blobUrl = URL.createObjectURL(file);
         setUrl(blobUrl);
-        pushToast('Đang dùng tệp cục bộ (máy chủ không khả dụng)', 'info');
+        pushToast('Đang dùng tệp cục bộ trên máy', 'info');
       }
     } catch (err: any) {
       pushToast('Lỗi xử lý tệp: ' + err.message, 'error');
     } finally {
       setIsUploading(false);
+    }
+  };
+
+  const handleAutoDetectLink = async (targetUrl?: string, isSilent = false) => {
+    let rawUrl = (targetUrl !== undefined ? targetUrl : url).trim();
+    if (!rawUrl) {
+      if (!isSilent) pushToast('Vui lòng dán hoặc nhập đường link cần nhận diện', 'info');
+      return;
+    }
+
+    // Auto prepend https:// if missing
+    if (!/^https?:\/\//i.test(rawUrl)) {
+      rawUrl = 'https://' + rawUrl;
+    }
+    setUrl(rawUrl);
+
+    setIsDetecting(true);
+    setDetectStatusMsg('Đang nhận diện liên kết âm nhạc...');
+
+    try {
+      // 1. Direct In-Browser Engine (resilient, instant, zero-fail)
+      const clientRes = await detectLinkMetadata(rawUrl);
+      if (clientRes && clientRes.ok) {
+        setDetectedInfo(clientRes);
+        if (clientRes.title) setTitle(clientRes.title);
+        if (clientRes.artist) setArtist(clientRes.artist);
+        if (clientRes.thumbnail) setThumbnail(clientRes.thumbnail);
+        if (clientRes.duration && clientRes.duration > 0) {
+          setDuration(clientRes.duration);
+          setTrimEnd(clientRes.duration);
+        }
+        if (clientRes.streamUrl) {
+          if (clientRes.platform !== 'gdrive') {
+            setUrl(clientRes.streamUrl);
+          }
+          if (clientRes.streamUrl.startsWith('/api/')) {
+            probeAudioDuration(clientRes.streamUrl).then((dur) => {
+              if (dur > 0) {
+                setDuration(dur);
+                setTrimEnd(dur);
+              }
+            }).catch(() => {});
+          }
+        }
+
+        // For Google Drive: auto-cache in background to local studio storage
+        if (clientRes.platform === 'gdrive' || rawUrl.includes('drive.google.com')) {
+          importGoogleDriveAudio(rawUrl, clientRes.title ? `${clientRes.title}.mp3` : 'DriveAudio.mp3')
+            .then((res) => {
+              if (res.ok && res.audio) {
+                setUploadedAudioId(res.audio.id);
+                setDetectStatusMsg(`✨ Đã nạp thành công bài hát từ Google Drive vào Studio!`);
+                probeAudioDuration(res.audio.url).then((dur) => {
+                  if (dur > 0) {
+                    setDuration(dur);
+                    setTrimEnd(dur);
+                  }
+                }).catch(() => {});
+              }
+            })
+            .catch(() => {});
+        }
+
+        setDetectStatusMsg(`✨ Đã nhận diện từ [${(clientRes.platform || 'Link').toUpperCase()}]: ${clientRes.title}`);
+        if (!isSilent) {
+          pushToast(`✨ Nhận diện thành công: "${clientRes.title}"!`, 'success');
+        }
+      }
+
+      // 2. Background Enrichment (try server API if available)
+      fetchLinkInfo(rawUrl)
+        .then((serverRes) => {
+          if (serverRes && serverRes.ok && serverRes.title) {
+            if (serverRes.title && serverRes.title !== clientRes?.title) {
+              setTitle(serverRes.title);
+            }
+            if (serverRes.artist && serverRes.artist !== clientRes?.artist) {
+              setArtist(serverRes.artist);
+            }
+            if (serverRes.thumbnail) {
+              setThumbnail(serverRes.thumbnail);
+            }
+            if (serverRes.streamUrl && serverRes.platform !== 'gdrive') {
+              setUrl(serverRes.streamUrl);
+              if (serverRes.streamUrl.startsWith('/api/')) {
+                probeAudioDuration(serverRes.streamUrl).then((dur) => {
+                  if (dur > 0) {
+                    setDuration(dur);
+                    setTrimEnd(dur);
+                  }
+                }).catch(() => {});
+              }
+            }
+            setDetectedInfo(serverRes);
+          }
+        })
+        .catch(() => {});
+    } catch (err: any) {
+      setDetectStatusMsg('Không thể tự động đọc metadata. Bạn vẫn có thể điền thông tin thủ công.');
+      if (!isSilent) {
+        pushToast('Lỗi khi nhận diện: ' + err.message, 'info');
+      }
+    } finally {
+      setIsDetecting(false);
+    }
+  };
+
+  const handleUrlInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const val = e.target.value;
+    setUrl(val);
+
+    if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current);
+
+    const trimmed = val.trim();
+    if (trimmed.length > 10 && (trimmed.includes('.') || trimmed.startsWith('http'))) {
+      debounceTimerRef.current = setTimeout(() => {
+        handleAutoDetectLink(trimmed, true);
+      }, 500);
+    }
+  };
+
+  const handlePasteUrl = (e: React.ClipboardEvent<HTMLInputElement>) => {
+    const pasted = e.clipboardData.getData('text');
+    if (pasted && pasted.trim()) {
+      const clean = pasted.trim();
+      setUrl(clean);
+      if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current);
+      setTimeout(() => handleAutoDetectLink(clean, false), 50);
     }
   };
 
@@ -110,7 +252,8 @@ export const AddTrackModal: React.FC<AddTrackModalProps> = ({
         if (!title) setTitle(res.audio.name);
         pushToast('Đã kéo tệp từ Google Drive về máy chủ thành công!', 'success');
       } else {
-        throw new Error(res.error || 'Không thể nhập tệp');
+        // Fallback: use direct Google Drive stream URL
+        await handleAutoDetectLink(url, false);
       }
     } catch (err: any) {
       pushToast('Lỗi nhập Google Drive: ' + err.message, 'error');
@@ -130,15 +273,23 @@ export const AddTrackModal: React.FC<AddTrackModalProps> = ({
       return;
     }
 
+    const driveId = extractDriveFileId(url);
+    const resolvedUrl = uploadedAudioId
+      ? `/api/audio/${uploadedAudioId}`
+      : driveId
+      ? `/api/gdrive/stream?id=${driveId}`
+      : url.trim();
+
     addTrack({
       sectionId: targetSectionId || sections[0]?.id || '',
       side: side,
       title: title.trim(),
       artist: artist.trim(),
-      platform: platformTab,
-      url: url.trim(),
+      platform: driveId ? 'gdrive' : platformTab,
+      url: resolvedUrl,
       audioId: uploadedAudioId || undefined,
-      fileName: selectedFileName || undefined,
+      fileName: selectedFileName || (driveId ? `${title.trim() || 'Drive'}.mp3` : undefined),
+      thumbnail: thumbnail || (driveId ? `https://drive.google.com/thumbnail?id=${driveId}&sz=w600` : undefined),
       note: note.trim(),
       favorite: false,
       trimStart: Number(trimStart) || 0,
@@ -194,6 +345,15 @@ export const AddTrackModal: React.FC<AddTrackModalProps> = ({
         <div className="source-tabs-row">
           <button
             type="button"
+            className={`source-tab-btn ${platformTab === 'link' ? 'active' : ''}`}
+            onClick={() => setPlatformTab('link')}
+          >
+            <SparklesIcon className="w-4 h-4 text-amber-500" />
+            <span>Dán Link Nhận Diện</span>
+          </button>
+
+          <button
+            type="button"
             className={`source-tab-btn ${platformTab === 'local' ? 'active' : ''}`}
             onClick={() => setPlatformTab('local')}
           >
@@ -218,15 +378,6 @@ export const AddTrackModal: React.FC<AddTrackModalProps> = ({
             <GoogleDriveIcon />
             <span>Google Drive</span>
           </button>
-
-          <button
-            type="button"
-            className={`source-tab-btn ${platformTab === 'link' ? 'active' : ''}`}
-            onClick={() => setPlatformTab('link')}
-          >
-            <LinkIcon />
-            <span>Link Web</span>
-          </button>
         </div>
 
         <form onSubmit={handleSubmit} className="modal-form">
@@ -245,6 +396,88 @@ export const AddTrackModal: React.FC<AddTrackModalProps> = ({
             </select>
           </div>
 
+          {/* TAB 1: DÁN LINK TỰ ĐỘNG NHẬN DIỆN */}
+          {platformTab === 'link' && (
+            <div className="form-group link-input-container">
+              <label className="form-label">
+                Liên kết bài hát (YouTube, Spotify, SoundCloud, ZingMP3, Nhaccuatui, MP3 trực tiếp...)
+              </label>
+              <div className="flex-input-row">
+                <input
+                  type="text"
+                  className="form-input form-input--link"
+                  placeholder="Dán link bài hát vào đây (hệ thống tự động quét ngay khi dán)..."
+                  value={url}
+                  onChange={handleUrlInputChange}
+                  onPaste={handlePasteUrl}
+                />
+                <button
+                  type="button"
+                  className="auto-detect-btn"
+                  onClick={() => handleAutoDetectLink(url, false)}
+                  disabled={isDetecting}
+                >
+                  <SparklesIcon className="w-4 h-4 text-amber-500" />
+                  <span>{isDetecting ? 'Đang quét...' : 'Nhận diện ngay'}</span>
+                </button>
+              </div>
+
+              {detectStatusMsg && (
+                <div className="link-status-hint">
+                  {isDetecting ? (
+                    <span className="text-amber-600 font-medium">⏳ {detectStatusMsg}</span>
+                  ) : (
+                    <span className="text-emerald-700 font-medium">{detectStatusMsg}</span>
+                  )}
+                </div>
+              )}
+
+              {/* Detected Link Preview Card */}
+              {(detectedInfo || thumbnail) && (
+                <div className="link-detect-card">
+                  <div className="link-detect-thumb">
+                    {thumbnail ? (
+                      <img
+                        src={thumbnail}
+                        alt="Cover"
+                        className="link-detect-img"
+                        onError={(e) => {
+                          (e.currentTarget as HTMLElement).style.display = 'none';
+                        }}
+                      />
+                    ) : (
+                      <div className="link-detect-placeholder">
+                        <MusicIcon />
+                      </div>
+                    )}
+                  </div>
+                  <div className="link-detect-info">
+                    <div className="link-detect-header">
+                      <span className="link-platform-tag">
+                        {detectedInfo?.platform?.toUpperCase() || 'LINK'}
+                      </span>
+                      <span className="link-detect-success-badge">
+                        <CheckIcon /> Đã nhận diện thông tin
+                      </span>
+                    </div>
+                    <div className="link-detect-title">{title || detectedInfo?.title || 'Chưa rõ tiêu đề'}</div>
+                    <div className="link-detect-artist">{artist || detectedInfo?.artist || 'Chưa rõ nghệ sĩ'}</div>
+                    {duration != null && duration > 0 && (
+                      <div className="link-detect-dur">
+                        Thời lượng: {Math.floor(duration / 60)}:{(Math.floor(duration % 60)).toString().padStart(2, '0')}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              <p className="form-hint">
+                💡 <b>Mẹo nhanh:</b> Hỗ trợ link YouTube, YouTube Music, Spotify, SoundCloud, Zing MP3, Nhaccuatui, Google Drive & link MP3. Chỉ cần copy và dán vào là xong!
+              </p>
+            </div>
+          )}
+
+          {/* TAB 2 & 3: TỆP MÁY TÍNH / ĐIỆN THOẠI */}
           {(platformTab === 'local' || platformTab === 'mobile') && (
             <div className="form-group">
               <label className="form-label">
@@ -273,6 +506,7 @@ export const AddTrackModal: React.FC<AddTrackModalProps> = ({
             </div>
           )}
 
+          {/* TAB 4: GOOGLE DRIVE */}
           {platformTab === 'gdrive' && (
             <div className="form-group">
               <label className="form-label">Đường dẫn tệp chia sẻ Google Drive</label>
@@ -282,8 +516,19 @@ export const AddTrackModal: React.FC<AddTrackModalProps> = ({
                   className="form-input"
                   placeholder="https://drive.google.com/file/d/..."
                   value={url}
-                  onChange={(e) => setUrl(e.target.value)}
+                  onChange={handleUrlInputChange}
+                  onPaste={handlePasteUrl}
                 />
+                <button
+                  type="button"
+                  className="secondary-btn"
+                  onClick={() => handleAutoDetectLink(url, false)}
+                  disabled={isDetecting}
+                  title="Nhận diện tên file từ Google Drive"
+                >
+                  <SparklesIcon className="w-4 h-4 text-amber-500" />
+                  <span>{isDetecting ? 'Đang đọc...' : 'Nhận diện'}</span>
+                </button>
                 <button
                   type="button"
                   className="secondary-btn"
@@ -296,19 +541,6 @@ export const AddTrackModal: React.FC<AddTrackModalProps> = ({
               <p className="form-hint">
                 Tệp Google Drive cần đặt quyền "Bất kỳ ai có đường liên kết đều có thể xem".
               </p>
-            </div>
-          )}
-
-          {platformTab === 'link' && (
-            <div className="form-group">
-              <label className="form-label">Địa chỉ URL bài hát (Trực tiếp .mp3 / luồng audio)</label>
-              <input
-                type="url"
-                className="form-input"
-                placeholder="https://example.com/audio/song.mp3"
-                value={url}
-                onChange={(e) => setUrl(e.target.value)}
-              />
             </div>
           )}
 
@@ -335,6 +567,17 @@ export const AddTrackModal: React.FC<AddTrackModalProps> = ({
                 onChange={(e) => setArtist(e.target.value)}
               />
             </div>
+          </div>
+
+          <div className="form-group">
+            <label className="form-label">Ảnh bìa bài hát (URL)</label>
+            <input
+              type="text"
+              className="form-input"
+              placeholder="https://... ảnh bìa bài hát / album"
+              value={thumbnail}
+              onChange={(e) => setThumbnail(e.target.value)}
+            />
           </div>
 
           <div className="form-group">
@@ -385,7 +628,7 @@ export const AddTrackModal: React.FC<AddTrackModalProps> = ({
             <button type="button" className="secondary-btn" onClick={onClose}>
               Hủy
             </button>
-            <button type="submit" className="primary-btn" disabled={isUploading}>
+            <button type="submit" className="primary-btn" disabled={isUploading || isDetecting}>
               <CheckIcon />
               <span>Hoàn tất & Thêm vào kịch bản</span>
             </button>

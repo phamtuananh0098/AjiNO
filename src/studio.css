@@ -2248,3 +2248,311 @@
 .print-side-badge--groom { background: #dbeafe; color: #1e40af; }
 .print-side-badge--bride { background: #fce7f3; color: #be185d; }
 .print-side-badge--both { background: #fef3c7; color: #92400e; }
+
+/* ==========================================================================
+   LINK AUTO-DETECTION AND PREVIEW STYLES
+   ========================================================================== */
+.auto-detect-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 0.6rem 1.1rem;
+  border-radius: 10px;
+  border: 1px solid rgba(217, 119, 6, 0.4);
+  background: linear-gradient(135deg, #fffbeb, #fef3c7);
+  color: #b45309;
+  font-weight: 600;
+  font-size: 0.85rem;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.2s ease;
+  box-shadow: 0 1px 3px rgba(180, 83, 9, 0.12);
+}
+
+.auto-detect-btn:hover:not(:disabled) {
+  background: linear-gradient(135deg, #fef3c7, #fde68a);
+  border-color: #d97706;
+  transform: translateY(-1px);
+}
+
+.auto-detect-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.link-detect-card {
+  margin-top: 0.85rem;
+  padding: 0.85rem 1rem;
+  border-radius: 12px;
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.95), rgba(254, 243, 199, 0.45));
+  border: 1px solid rgba(217, 119, 6, 0.3);
+  box-shadow: 0 4px 12px rgba(180, 83, 9, 0.08);
+  display: flex;
+  align-items: center;
+  gap: 0.9rem;
+  animation: fadeInDetect 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes fadeInDetect {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.link-detect-thumb {
+  width: 72px;
+  height: 54px;
+  border-radius: 8px;
+  overflow: hidden;
+  flex-shrink: 0;
+  background: #ede4d8;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.12);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.link-detect-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.link-detect-placeholder {
+  color: #8a7a6e;
+}
+
+.link-detect-info {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
+.link-detect-header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.72rem;
+}
+
+.link-platform-tag {
+  display: inline-block;
+  font-weight: 700;
+  font-family: monospace;
+  padding: 0.15rem 0.45rem;
+  border-radius: 4px;
+  background: #fef3c7;
+  color: #92400e;
+  letter-spacing: 0.03em;
+}
+
+.link-detect-success-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  color: #059669;
+  font-weight: 600;
+}
+
+.link-detect-title {
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: #231c18;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.link-detect-artist {
+  font-size: 0.82rem;
+  color: #6b5c50;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.link-detect-dur {
+  font-size: 0.75rem;
+  font-family: monospace;
+  color: #8a7a6e;
+}
+
+/* Track Thumbnail in Track Item */
+.track-thumb-cover {
+  width: 36px;
+  height: 36px;
+  border-radius: 6px;
+  object-fit: cover;
+  flex-shrink: 0;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.15);
+  margin-right: 0.25rem;
+}
+
+/* Console Thumbnail in Player */
+.console-thumb-img {
+  width: 44px;
+  height: 44px;
+  border-radius: 8px;
+  object-fit: cover;
+  flex-shrink: 0;
+  margin-right: 0.75rem;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
+}
+
+.link-status-hint {
+  margin-top: 0.45rem;
+  font-size: 0.8rem;
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.form-input--link {
+  font-family: inherit;
+  font-size: 0.88rem;
+  padding: 0.65rem 0.85rem;
+}
+
+.console-ext-link {
+  font-size: 0.72rem;
+  padding: 0.15rem 0.5rem;
+  border-radius: 6px;
+  background: var(--line-soft, #ede4d8);
+  color: var(--wine, #74263a);
+  font-weight: 600;
+  text-decoration: none;
+  white-space: nowrap;
+  display: inline-flex;
+  align-items: center;
+  transition: all 0.2s ease;
+  margin-left: 0.4rem;
+}
+
+.console-ext-link:hover {
+  background: var(--gold-soft, #fef3c7);
+  color: #92400e;
+}
+
+/* ==========================================================================
+   YOUTUBE TRIMMER PREVIEW & CONSOLE AUDIO PLAYER
+   ========================================================================== */
+.trimmer-yt-preview-box {
+  background: rgba(0, 0, 0, 0.03);
+  border: 1px solid var(--line, #e6ded3);
+  border-radius: 12px;
+  padding: 0.75rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.trimmer-yt-badge-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.trimmer-yt-hint {
+  font-size: 0.8rem;
+  color: var(--ink-2, #6b5c50);
+}
+
+.trimmer-yt-iframe {
+  width: 100%;
+  height: 220px;
+  border-radius: 8px;
+  border: none;
+  background: #000;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.console-yt-box {
+  position: absolute;
+  top: -155px;
+  right: 1.5rem;
+  width: 250px;
+  height: 145px;
+  border-radius: 10px;
+  overflow: hidden;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+  border: 2px solid rgba(217, 119, 6, 0.4);
+  background: #000;
+  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  display: none;
+  z-index: 100;
+}
+
+.console-yt-box.console-yt-box--active {
+  display: block;
+}
+
+.console-yt-iframe {
+  width: 100%;
+  height: 100%;
+  border: none;
+}
+
+/* ==========================================================================
+   GOOGLE DRIVE TRIMMER BOX & CACHE BUTTON
+   ========================================================================== */
+.trimmer-drive-box {
+  background: rgba(16, 185, 129, 0.06);
+  border: 1px solid rgba(16, 185, 129, 0.3);
+  border-radius: 12px;
+  padding: 0.75rem 1rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.trimmer-drive-info {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+}
+
+.trimmer-drive-desc {
+  font-size: 0.8rem;
+  color: #065f46;
+  font-weight: 500;
+}
+
+.trimmer-drive-cache-btn {
+  background: linear-gradient(135deg, #059669, #047857);
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  padding: 0.35rem 0.85rem;
+  font-size: 0.8rem;
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow: 0 2px 6px rgba(5, 150, 105, 0.25);
+}
+
+.trimmer-drive-cache-btn:hover:not(:disabled) {
+  background: linear-gradient(135deg, #047857, #065f46);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 10px rgba(5, 150, 105, 0.35);
+}
+
+.trimmer-drive-cache-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+

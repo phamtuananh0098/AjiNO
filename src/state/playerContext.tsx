@@ -2,6 +2,18 @@ import React, { createContext, useContext, useEffect, useRef, useState, useCallb
 import type { Track, PlaybackMode } from '../types';
 import { usePlaylist } from './playlistContext';
 import { useToast } from './toastContext';
+import { extractDriveFileId } from '../services/linkDetector';
+
+export function resolvePlayableAudioUrl(track: Track): string {
+  if (track.audioId) {
+    return `/api/audio/${track.audioId}`;
+  }
+  const driveId = extractDriveFileId(track.url);
+  if (driveId) {
+    return `/api/gdrive/stream?id=${driveId}`;
+  }
+  return track.url;
+}
 
 interface PlayerContextType {
   currentTrack: Track | null;
@@ -13,6 +25,7 @@ interface PlayerContextType {
   mode: PlaybackMode;
   loop: boolean;
   loading: boolean;
+  youtubeId: string | null;
   playTrack: (track: Track, forceMode?: PlaybackMode) => void;
   togglePlay: () => void;
   pause: () => void;
@@ -29,6 +42,23 @@ interface PlayerContextType {
 
 const PlayerContext = createContext<PlayerContextType | null>(null);
 
+function extractYoutubeId(url?: string): string | null {
+  if (!url) return null;
+  const m = url.match(/(?:youtu\.be\/|youtube\.com\/(?:embed\/|v\/|watch\?v=|watch\?.+&v=|shorts\/))([\w-]{11})/i);
+  return m ? m[1] : null;
+}
+
+function sendYtCommand(func: string, args: any = '') {
+  const iframe = document.getElementById('duyen-ca-console-yt-player') as HTMLIFrameElement | null;
+  if (!iframe || !iframe.contentWindow) return;
+  const payload = JSON.stringify({
+    event: 'command',
+    func,
+    args: args !== '' ? (Array.isArray(args) ? args : [args]) : '',
+  });
+  iframe.contentWindow.postMessage(payload, '*');
+}
+
 export function PlayerProvider({ children }: { children: React.ReactNode }) {
   const { playlist } = usePlaylist();
   const { pushToast } = useToast();
@@ -42,18 +72,22 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
   const [mode, setMode] = useState<PlaybackMode>('clip');
   const [loop, setLoop] = useState<boolean>(false);
   const [loading, setLoading] = useState<boolean>(false);
+  const [youtubeId, setYoutubeId] = useState<string | null>(null);
 
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const fadeIntervalRef = useRef<any>(null);
+  const ytTimerRef = useRef<any>(null);
   const currentTrackRef = useRef<Track | null>(null);
   const modeRef = useRef<PlaybackMode>('clip');
+  const loopRef = useRef<boolean>(false);
   const autoNextRef = useRef<boolean>(playlist.preferences.autoNext ?? true);
 
   currentTrackRef.current = currentTrack;
   modeRef.current = mode;
+  loopRef.current = loop;
   autoNextRef.current = playlist.preferences.autoNext ?? true;
 
-  // Initialize Audio element once
+  // Initialize HTML5 Audio element once
   useEffect(() => {
     const audio = new Audio();
     audio.preload = 'auto';
@@ -62,7 +96,16 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
     const onPlay = () => setIsPlaying(true);
     const onPause = () => setIsPlaying(false);
     const onWaiting = () => setLoading(true);
-    const onCanPlay = () => setLoading(false);
+    const onCanPlay = () => {
+      setLoading(false);
+      const track = currentTrackRef.current;
+      const currentMode = modeRef.current;
+      if (track && currentMode === 'clip' && track.trimStart > 0) {
+        if (Math.abs(audio.currentTime - track.trimStart) > 0.5) {
+          audio.currentTime = track.trimStart;
+        }
+      }
+    };
 
     const onTimeUpdate = () => {
       if (!audio) return;
@@ -75,8 +118,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
 
       if (track && currentMode === 'clip' && track.trimEnd && track.trimEnd > track.trimStart) {
         if (cur >= track.trimEnd) {
-          // Clip finished
-          if (audio.loop) {
+          if (audio.loop || loopRef.current) {
             audio.currentTime = track.trimStart || 0;
             audio.play().catch(() => {});
           } else {
@@ -89,8 +131,13 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
     const onLoadedMetadata = () => {
       if (!audio) return;
       const dur = audio.duration;
-      if (Number.isFinite(dur)) {
+      if (Number.isFinite(dur) && dur > 0) {
         setDuration(dur);
+      }
+      const track = currentTrackRef.current;
+      const currentMode = modeRef.current;
+      if (track && currentMode === 'clip' && track.trimStart > 0) {
+        audio.currentTime = track.trimStart;
       }
       setLoading(false);
     };
@@ -102,7 +149,28 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
     const onError = () => {
       setLoading(false);
       setIsPlaying(false);
-      pushToast('Không thể phát tệp âm thanh. Vui lòng kiểm tra lại nguồn tệp.', 'error');
+      const track = currentTrackRef.current;
+      if (!track) return;
+      if (extractYoutubeId(track.url)) return;
+
+      const driveId = extractDriveFileId(track.url);
+      if (driveId && audio && !audio.src.includes('drive.usercontent.google.com')) {
+        // Fallback directly to Google Drive user content endpoint
+        const directUrl = `https://drive.usercontent.google.com/download?id=${driveId}&export=download&confirm=t`;
+        audio.src = directUrl;
+        audio.load();
+        audio.play().then(() => {
+          setIsPlaying(true);
+        }).catch(() => {
+          pushToast(
+            'Không thể tải tệp nhạc từ Google Drive. Vui lòng đảm bảo tệp đã bật "Bất kỳ ai có đường liên kết đều có thể xem".',
+            'error'
+          );
+        });
+        return;
+      }
+
+      pushToast('Không thể phát tệp âm thanh này. Vui lòng kiểm tra lại nguồn phát.', 'error');
     };
 
     audio.addEventListener('play', onPlay);
@@ -130,15 +198,15 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
 
   // Adjust volume
   const applyAudioVolume = useCallback((vol: number, muted: boolean, trackOffset = 0) => {
-    if (!audioRef.current) return;
     if (muted) {
-      audioRef.current.volume = 0;
+      if (audioRef.current) audioRef.current.volume = 0;
+      sendYtCommand('setVolume', 0);
       return;
     }
-    // Gain offset: e.g. -5 to +5 -> multiplier
     const offsetFactor = Math.pow(10, trackOffset / 20);
     const targetVol = Math.max(0, Math.min(1, vol * offsetFactor));
-    audioRef.current.volume = targetVol;
+    if (audioRef.current) audioRef.current.volume = targetVol;
+    sendYtCommand('setVolume', Math.round(targetVol * 100));
   }, []);
 
   const setVolume = useCallback((val: number) => {
@@ -156,27 +224,88 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
     });
   }, [applyAudioVolume, volume, currentTrack]);
 
-  // Play track
+  // Play track (supports Local, Google Drive, and YouTube)
   const playTrack = useCallback((track: Track, forceMode?: PlaybackMode) => {
     const audio = audioRef.current;
-    if (!audio) return;
-
     if (fadeIntervalRef.current) {
       clearInterval(fadeIntervalRef.current);
       fadeIntervalRef.current = null;
+    }
+    if (ytTimerRef.current) {
+      clearInterval(ytTimerRef.current);
+      ytTimerRef.current = null;
     }
 
     const useMode = forceMode ?? mode;
     setCurrentTrack(track);
     setLoading(true);
 
-    const sourceUrl = track.audioId ? `/api/audio/${track.audioId}` : track.url;
+    const sourceUrl = resolvePlayableAudioUrl(track);
+    const ytId = extractYoutubeId(track.url);
+
+    if (ytId) {
+      // 1. YouTube Playback Engine
+      if (audio) {
+        audio.pause();
+        audio.src = '';
+      }
+
+      setYoutubeId(ytId);
+      const startPos = useMode === 'clip' ? (track.trimStart || 0) : 0;
+      const trackDur = track.duration || 240;
+      setCurrentTime(startPos);
+      setDuration(trackDur);
+      setIsPlaying(true);
+      setLoading(false);
+
+      // Tell YouTube iframe to seek and play
+      setTimeout(() => {
+        sendYtCommand('seekTo', [startPos, true]);
+        sendYtCommand('playVideo');
+        applyAudioVolume(volume, isMuted, track.volumeOffset || 0);
+      }, 100);
+
+      // Start ticker to track YouTube playback and handle clip boundaries
+      let cur = startPos;
+      ytTimerRef.current = setInterval(() => {
+        cur += 0.5;
+        setCurrentTime(cur);
+
+        // Clip boundary check
+        if (useMode === 'clip' && track.trimEnd && track.trimEnd > track.trimStart) {
+          if (cur >= track.trimEnd) {
+            if (loopRef.current) {
+              cur = track.trimStart || 0;
+              setCurrentTime(cur);
+              sendYtCommand('seekTo', [cur, true]);
+              sendYtCommand('playVideo');
+            } else {
+              sendYtCommand('pauseVideo');
+              setIsPlaying(false);
+              clearInterval(ytTimerRef.current);
+              ytTimerRef.current = null;
+              if (autoNextRef.current) {
+                nextTrack();
+              }
+            }
+          }
+        }
+      }, 500);
+
+      pushToast(`Đang phát đoạn nhạc YouTube: "${track.title}"`, 'success');
+      return;
+    }
+
+    // 2. Standard Audio / Google Drive / Local Engine
+    setYoutubeId(null);
+    sendYtCommand('stopVideo');
+
+    if (!audio) return;
     if (audio.src !== sourceUrl) {
       audio.src = sourceUrl;
       audio.load();
     }
 
-    // Set start position
     const startPos = useMode === 'clip' ? (track.trimStart || 0) : 0;
     audio.currentTime = startPos;
     setCurrentTime(startPos);
@@ -193,11 +322,29 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
       .catch((err) => {
         setLoading(false);
         setIsPlaying(false);
-        console.warn('Playback blocked or failed:', err);
+        console.warn('Audio playback error:', err);
       });
-  }, [mode, volume, isMuted, applyAudioVolume]);
+  }, [mode, volume, isMuted, applyAudioVolume, pushToast]);
 
   const togglePlay = useCallback(() => {
+    if (youtubeId) {
+      if (isPlaying) {
+        sendYtCommand('pauseVideo');
+        if (ytTimerRef.current) clearInterval(ytTimerRef.current);
+        setIsPlaying(false);
+      } else {
+        sendYtCommand('playVideo');
+        setIsPlaying(true);
+        // resume ticker
+        if (!ytTimerRef.current) {
+          ytTimerRef.current = setInterval(() => {
+            setCurrentTime((prev) => prev + 0.5);
+          }, 500);
+        }
+      }
+      return;
+    }
+
     const audio = audioRef.current;
     if (!audio) return;
 
@@ -210,13 +357,27 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
         playTrack(playlist.tracks[0]);
       }
     }
-  }, [isPlaying, currentTrack, playlist.tracks, playTrack]);
+  }, [isPlaying, youtubeId, currentTrack, playlist.tracks, playTrack]);
 
   const pause = useCallback(() => {
+    if (youtubeId) {
+      sendYtCommand('pauseVideo');
+      if (ytTimerRef.current) clearInterval(ytTimerRef.current);
+      setIsPlaying(false);
+      return;
+    }
     audioRef.current?.pause();
-  }, []);
+  }, [youtubeId]);
 
   const stop = useCallback(() => {
+    if (youtubeId) {
+      sendYtCommand('stopVideo');
+      if (ytTimerRef.current) clearInterval(ytTimerRef.current);
+      const startPos = mode === 'clip' && currentTrack ? (currentTrack.trimStart || 0) : 0;
+      setCurrentTime(startPos);
+      setIsPlaying(false);
+      return;
+    }
     const audio = audioRef.current;
     if (!audio) return;
     audio.pause();
@@ -224,9 +385,13 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
     audio.currentTime = startPos;
     setCurrentTime(startPos);
     setIsPlaying(false);
-  }, [mode, currentTrack]);
+  }, [youtubeId, mode, currentTrack]);
 
   const fadeStop = useCallback((durationSeconds = 2) => {
+    if (youtubeId) {
+      stop();
+      return;
+    }
     const audio = audioRef.current;
     if (!audio || !isPlaying) return;
 
@@ -250,14 +415,19 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
         applyAudioVolume(volume, isMuted, currentTrack?.volumeOffset || 0);
       }
     }, stepTime);
-  }, [isPlaying, volume, isMuted, currentTrack, applyAudioVolume]);
+  }, [youtubeId, isPlaying, volume, isMuted, currentTrack, applyAudioVolume, stop]);
 
   const seek = useCallback((seconds: number) => {
+    if (youtubeId) {
+      sendYtCommand('seekTo', [seconds, true]);
+      setCurrentTime(seconds);
+      return;
+    }
     const audio = audioRef.current;
     if (!audio) return;
     audio.currentTime = seconds;
     setCurrentTime(seconds);
-  }, []);
+  }, [youtubeId]);
 
   const toggleLoop = useCallback(() => {
     setLoop((prev) => {
@@ -269,10 +439,8 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
     });
   }, []);
 
-  // Track next / prev in current section or playlist
   const nextTrack = useCallback(() => {
     if (!currentTrack || playlist.tracks.length === 0) return;
-    // Prefer next track in the same section
     const currentSectionTracks = playlist.tracks.filter((t) => t.sectionId === currentTrack.sectionId);
     const currentIndex = currentSectionTracks.findIndex((t) => t.id === currentTrack.id);
 
@@ -281,7 +449,6 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
       return;
     }
 
-    // Otherwise next in global playlist
     const globalIndex = playlist.tracks.findIndex((t) => t.id === currentTrack.id);
     if (globalIndex >= 0 && globalIndex < playlist.tracks.length - 1) {
       playTrack(playlist.tracks[globalIndex + 1]);
@@ -332,6 +499,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
         mode,
         loop,
         loading,
+        youtubeId,
         playTrack,
         togglePlay,
         pause,
@@ -351,7 +519,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
   );
 }
 
-export function usePlayer() {
+export function usePlayer(): PlayerContextType {
   const ctx = useContext(PlayerContext);
   if (!ctx) throw new Error('usePlayer must be used within PlayerProvider');
   return ctx;

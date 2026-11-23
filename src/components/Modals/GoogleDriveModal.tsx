@@ -1,12 +1,14 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import type { WeddingSide } from '../../types';
 import { usePlaylist } from '../../state/playlistContext';
 import { useToast } from '../../state/toastContext';
 import { importGoogleDriveAudio } from '../../services/api';
+import { detectLinkMetadata, extractDriveFileId } from '../../services/linkDetector';
 import {
   GoogleDriveIcon,
   CloseIcon,
   DownloadIcon,
+  SparklesIcon,
 } from '../common/Icons';
 
 interface GoogleDriveModalProps {
@@ -24,8 +26,48 @@ export const GoogleDriveModal: React.FC<GoogleDriveModalProps> = ({ open, onClos
   const [side, setSide] = useState<WeddingSide>('both');
   const [targetSectionId, setTargetSectionId] = useState(playlist.sections[0]?.id || '');
   const [isImporting, setIsImporting] = useState(false);
+  const [isDetecting, setIsDetecting] = useState(false);
+
+  const debounceTimerRef = useRef<any>(null);
 
   if (!open) return null;
+
+  const handleAutoDetect = async (urlStr: string) => {
+    const trimmed = urlStr.trim();
+    if (!trimmed) return;
+    setIsDetecting(true);
+    try {
+      const info = await detectLinkMetadata(trimmed);
+      if (info && info.ok) {
+        if (info.title && !songTitle) setSongTitle(info.title);
+        if (info.artist && !songArtist) setSongArtist(info.artist);
+        pushToast(`✨ Đã nhận diện tên tệp: "${info.title}"`, 'success');
+      }
+    } catch {}
+    finally {
+      setIsDetecting(false);
+    }
+  };
+
+  const handleUrlChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const val = e.target.value;
+    setDriveUrl(val);
+
+    if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current);
+    if (val.trim().length > 15 && val.includes('drive.google.com')) {
+      debounceTimerRef.current = setTimeout(() => {
+        handleAutoDetect(val);
+      }, 500);
+    }
+  };
+
+  const handlePaste = (e: React.ClipboardEvent<HTMLInputElement>) => {
+    const pasted = e.clipboardData.getData('text');
+    if (pasted && pasted.trim()) {
+      setDriveUrl(pasted.trim());
+      setTimeout(() => handleAutoDetect(pasted.trim()), 50);
+    }
+  };
 
   const handleImport = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -34,6 +76,7 @@ export const GoogleDriveModal: React.FC<GoogleDriveModalProps> = ({ open, onClos
       return;
     }
 
+    const driveId = extractDriveFileId(driveUrl);
     setIsImporting(true);
     try {
       const res = await importGoogleDriveAudio(driveUrl, songTitle || 'DriveAudio.mp3');
@@ -47,7 +90,8 @@ export const GoogleDriveModal: React.FC<GoogleDriveModalProps> = ({ open, onClos
           url: res.audio.url,
           audioId: res.audio.id,
           fileName: res.audio.name,
-          note: 'Tải từ Google Drive',
+          thumbnail: driveId ? `https://drive.google.com/thumbnail?id=${driveId}&sz=w600` : undefined,
+          note: 'Lưu trữ từ Google Drive',
           favorite: false,
           trimStart: 0,
           trimEnd: null,
@@ -57,13 +101,60 @@ export const GoogleDriveModal: React.FC<GoogleDriveModalProps> = ({ open, onClos
           fadeOut: 2,
         });
 
-        pushToast('Đã nạp bài hát từ Google Drive thành công!', 'success');
+        pushToast('Đã nạp và lưu trữ bài hát từ Google Drive thành công!', 'success');
         onClose();
       } else {
-        throw new Error(res.error || 'Không thể tải tệp');
+        // Fallback: add stream directly so the user is never blocked
+        if (driveId) {
+          addTrack({
+            sectionId: targetSectionId || playlist.sections[0]?.id || '',
+            side,
+            title: songTitle.trim() || `Nhạc Google Drive (${driveId.slice(0, 8)})`,
+            artist: songArtist.trim(),
+            platform: 'gdrive',
+            url: `/api/gdrive/stream?id=${driveId}`,
+            fileName: `${songTitle || 'DriveAudio'}.mp3`,
+            thumbnail: `https://drive.google.com/thumbnail?id=${driveId}&sz=w600`,
+            note: 'Phát trực tuyến Google Drive',
+            favorite: false,
+            trimStart: 0,
+            trimEnd: null,
+            duration: null,
+            volumeOffset: 0,
+            fadeIn: 2,
+            fadeOut: 2,
+          });
+          pushToast('Đã thêm bài hát Google Drive vào danh sách tiệc cưới!', 'success');
+          onClose();
+        } else {
+          throw new Error(res.error || 'Không thể đọc tệp từ liên kết đã nhập');
+        }
       }
     } catch (err: any) {
-      pushToast('Lỗi: ' + err.message, 'error');
+      if (driveId) {
+        addTrack({
+          sectionId: targetSectionId || playlist.sections[0]?.id || '',
+          side,
+          title: songTitle.trim() || `Nhạc Google Drive (${driveId.slice(0, 8)})`,
+          artist: songArtist.trim(),
+          platform: 'gdrive',
+          url: `/api/gdrive/stream?id=${driveId}`,
+          fileName: `${songTitle || 'DriveAudio'}.mp3`,
+          thumbnail: `https://drive.google.com/thumbnail?id=${driveId}&sz=w600`,
+          note: 'Phát trực tuyến Google Drive',
+          favorite: false,
+          trimStart: 0,
+          trimEnd: null,
+          duration: null,
+          volumeOffset: 0,
+          fadeIn: 2,
+          fadeOut: 2,
+        });
+        pushToast('Đã thêm bài hát Google Drive vào danh sách!', 'success');
+        onClose();
+      } else {
+        pushToast('Lỗi: ' + err.message, 'error');
+      }
     } finally {
       setIsImporting(false);
     }
@@ -94,14 +185,27 @@ export const GoogleDriveModal: React.FC<GoogleDriveModalProps> = ({ open, onClos
 
           <div className="form-group">
             <label className="form-label">Đường dẫn tệp Google Drive *</label>
-            <input
-              type="text"
-              className="form-input"
-              placeholder="https://drive.google.com/file/d/1A2B3C.../view?usp=sharing"
-              value={driveUrl}
-              onChange={(e) => setDriveUrl(e.target.value)}
-              required
-            />
+            <div className="flex-input-row">
+              <input
+                type="text"
+                className="form-input"
+                placeholder="https://drive.google.com/file/d/1A2B3C.../view?usp=sharing"
+                value={driveUrl}
+                onChange={handleUrlChange}
+                onPaste={handlePaste}
+                required
+              />
+              <button
+                type="button"
+                className="auto-detect-btn"
+                onClick={() => handleAutoDetect(driveUrl)}
+                disabled={isDetecting}
+                title="Nhận diện tên bài hát từ liên kết"
+              >
+                <SparklesIcon className="w-4 h-4 text-amber-500" />
+                <span>{isDetecting ? 'Đang đọc...' : 'Nhận diện'}</span>
+              </button>
+            </div>
           </div>
 
           <div className="form-row-2">

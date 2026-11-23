@@ -22,7 +22,10 @@ import {
   saveDriveConfig,
   extractDriveFileId,
   downloadFromDrive,
+  streamFromDrive,
+  fetchDriveMetadata,
 } from './gdriveService.mjs';
+import { parseLinkMetadata } from './linkParser.mjs';
 
 const PORT = Number(process.env.PORT) || 8788;
 const HOST = process.env.HOST || '0.0.0.0';
@@ -206,6 +209,47 @@ async function handleApi(req, res, url) {
       });
     } catch (err) {
       sendJson(res, 500, { ok: false, error: err?.message || 'Không thể nhập tệp từ Google Drive.' });
+    }
+    return true;
+  }
+
+  if (pathname === '/api/gdrive/stream' && (req.method === 'GET' || req.method === 'HEAD')) {
+    const fileId = url.searchParams.get('id') || url.searchParams.get('fileId');
+    if (!fileId) {
+      sendJson(res, 400, { ok: false, error: 'Thiếu tham số id của tệp Google Drive.' });
+      return true;
+    }
+    await streamFromDrive(req, res, fileId);
+    return true;
+  }
+
+  if (pathname === '/api/gdrive/metadata' && req.method === 'GET') {
+    const fileId = url.searchParams.get('id') || url.searchParams.get('fileId');
+    if (!fileId) {
+      sendJson(res, 400, { ok: false, error: 'Thiếu tham số id của tệp Google Drive.' });
+      return true;
+    }
+    try {
+      const meta = await fetchDriveMetadata(fileId);
+      sendJson(res, 200, meta);
+    } catch (err) {
+      sendJson(res, 500, { ok: false, error: err?.message || 'Lỗi quét thông tin Google Drive.' });
+    }
+    return true;
+  }
+
+  // 6. Link metadata auto-detection endpoint
+  if (pathname === '/api/link-info' && req.method === 'GET') {
+    const targetUrl = url.searchParams.get('url');
+    if (!targetUrl) {
+      sendJson(res, 400, { ok: false, error: 'Thiếu tham số url' });
+      return true;
+    }
+    try {
+      const info = await parseLinkMetadata(targetUrl);
+      sendJson(res, 200, info);
+    } catch (err) {
+      sendJson(res, 400, { ok: false, error: err?.message || 'Không thể nhận diện liên kết' });
     }
     return true;
   }

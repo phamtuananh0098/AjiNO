@@ -1,15 +1,16 @@
 # Dependencies
 node_modules/
 
-# Production build
+# Production builds
 dist/
 dist-ssr/
 
-# Local cache & data
+# Local data & audio uploads
 .data/
 .data*/
 *.local
 backups/
+Ajjjniii/
 
 # Logs
 npm-debug.log*
@@ -17,12 +18,13 @@ yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
 
-# Environment
+# Environment & Vercel
 .env
 .env.*
 !.env.example
+.vercel/
 
-# IDE
+# Editor & OS files
 .vscode/
 .idea/
 *.suo

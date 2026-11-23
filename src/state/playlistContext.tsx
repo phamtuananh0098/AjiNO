@@ -1,11 +1,12 @@
 import React, { createContext, useContext, useEffect, useState, useRef, useCallback } from 'react';
 import type { PlaylistData, WeddingMeta, Section, Track, SectionTone, WeddingSide, AppTheme, SyncState, Preferences } from '../types';
-import { getLocalPlaylist, setLocalPlaylist } from '../services/idbStorage';
+import { getLocalPlaylist, setLocalPlaylist, getStoredPlaylistSync } from '../services/idbStorage';
 import { fetchServerPlaylist, saveServerPlaylist, API_BASE } from '../services/api';
 import { useToast } from './toastContext';
 
 const DEFAULT_DATA: PlaylistData = {
   version: 1,
+  isDefault: true,
   meta: {
     title: 'Lễ Thành Hôn & Dạ Tiệc Cưới',
     couple: 'Minh Quân & Thùy Dung',
@@ -169,8 +170,8 @@ const DEFAULT_DATA: PlaylistData = {
     defaultFade: 2,
     preferredSideView: 'split',
   },
-  updatedAt: Date.now(),
-  revision: 1,
+  updatedAt: 0,
+  revision: 0,
 };
 
 interface PlaylistContextType {
@@ -200,10 +201,19 @@ interface PlaylistContextType {
 const PlaylistContext = createContext<PlaylistContextType | null>(null);
 
 export function PlaylistProvider({ children }: { children: React.ReactNode }) {
-  const [playlist, setPlaylist] = useState<PlaylistData>(DEFAULT_DATA);
+  // Synchronously initialize with stored user edits immediately to avoid reset flashes
+  const [playlist, setPlaylist] = useState<PlaylistData>(() => {
+    const syncLocal = getStoredPlaylistSync();
+    if (syncLocal) return syncLocal;
+    return DEFAULT_DATA;
+  });
+
   const [syncState, setSyncState] = useState<SyncState>('saved');
   const [clientCount, setClientCount] = useState<number>(1);
-  const [activeSideView, setActiveSideView] = useState<'split' | 'groom' | 'bride'>('split');
+  const [activeSideView, setActiveSideView] = useState<'split' | 'groom' | 'bride'>(() => {
+    const syncLocal = getStoredPlaylistSync();
+    return syncLocal?.preferences?.preferredSideView || 'split';
+  });
   const { pushToast } = useToast();
 
   const isInitialMount = useRef(true);
@@ -224,7 +234,7 @@ export function PlaylistProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
-  // Initial load: 1. local IDB -> 2. fetch server
+  // Initial load: 1. local IDB -> 2. fetch server with non-destructive merge
   useEffect(() => {
     let active = true;
     async function init() {
@@ -242,17 +252,41 @@ export function PlaylistProvider({ children }: { children: React.ReactNode }) {
       try {
         const res = await fetchServerPlaylist();
         if (active && res.ok && res.playlist) {
-          if (!local || res.playlist.updatedAt >= (local.updatedAt || 0)) {
-            setPlaylist(res.playlist);
-            await setLocalPlaylist(res.playlist);
-            if (res.playlist.preferences?.theme) {
-              applyTheme(res.playlist.preferences.theme);
+          const serverPl = res.playlist;
+          const currentLocal = local || getStoredPlaylistSync();
+
+          // Check if server playlist is just the default placeholder
+          const serverIsDefault =
+            serverPl.isDefault === true ||
+            (serverPl.revision <= 1 && (serverPl.updatedAt === 0 || serverPl.meta.couple === 'Minh Quân & Thùy Dung'));
+
+          // Check if client has real customized edits
+          const localIsCustomized =
+            !!currentLocal &&
+            !currentLocal.isDefault &&
+            ((currentLocal.revision || 0) > 0 || currentLocal.meta.couple !== 'Minh Quân & Thùy Dung');
+
+          if (serverIsDefault && localIsCustomized) {
+            // NEVER wipe user's local edits with a default template from server!
+            // Instead, re-seed server with the user's customized data:
+            await saveServerPlaylist(currentLocal);
+            setSyncState('synced');
+          } else if (!currentLocal || (serverPl.updatedAt || 0) >= (currentLocal.updatedAt || 0)) {
+            // Server has newer authentic changes
+            setPlaylist(serverPl);
+            await setLocalPlaylist(serverPl);
+            if (serverPl.preferences?.theme) {
+              applyTheme(serverPl.preferences.theme);
             }
-            if (res.playlist.preferences?.preferredSideView) {
-              setActiveSideView(res.playlist.preferences.preferredSideView);
+            if (serverPl.preferences?.preferredSideView) {
+              setActiveSideView(serverPl.preferences.preferredSideView);
             }
+            setSyncState('synced');
+          } else {
+            // Local is newer than server, push local to server
+            await saveServerPlaylist(currentLocal);
+            setSyncState('synced');
           }
-          setSyncState('synced');
         }
       } catch {
         if (active) setSyncState('offline');
@@ -361,6 +395,7 @@ export function PlaylistProvider({ children }: { children: React.ReactNode }) {
         const updated = updater(prev);
         const next: PlaylistData = {
           ...updated,
+          isDefault: false,
           updatedAt: Date.now(),
         };
         triggerAutoSave(next);
