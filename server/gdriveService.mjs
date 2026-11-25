@@ -1,5 +1,6 @@
 import { readFile, writeFile } from 'node:fs/promises';
 import { Readable } from 'node:stream';
+import { pipeline } from 'node:stream/promises';
 import { GDRIVE_CONFIG_FILE } from './paths.mjs';
 import { saveAudioBuffer } from './audioStorage.mjs';
 import { cleanTitleAndArtist } from './linkParser.mjs';
@@ -336,7 +337,8 @@ export async function downloadFromDrive(fileId, customName) {
 
 /**
  * Direct audio streaming proxy for Google Drive
- * Allows browser <audio> tag to play, seek, and trim Google Drive audio seamlessly
+ * Streams audio ranges directly with Content-Disposition: inline and CORS headers,
+ * completely bypassing browser CORP (same-site) and attachment restrictions.
  */
 export async function streamFromDrive(req, res, fileId) {
   if (!fileId) {
@@ -346,13 +348,102 @@ export async function streamFromDrive(req, res, fileId) {
     return;
   }
 
-  // Instant 307 redirect directly to Google Drive high-speed CDN endpoint
-  // Eliminates serverless timeouts, prevents 30s-60s proxy lag, and streams instantly
   const directUrl = `https://drive.usercontent.google.com/download?id=${fileId}&export=download&confirm=t`;
-  res.statusCode = 307;
-  res.setHeader('Location', directUrl);
-  res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Headers', '*');
-  res.setHeader('Cache-Control', 'public, max-age=86400');
-  res.end();
+  const ucUrl = `https://drive.google.com/uc?export=download&id=${fileId}&confirm=t`;
+
+  const forwardHeaders = {
+    'User-Agent':
+      'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+    Accept: '*/*',
+  };
+
+  if (req.headers.range) {
+    forwardHeaders.range = req.headers.range;
+  }
+
+  try {
+    let upstream = await fetch(directUrl, {
+      headers: forwardHeaders,
+      redirect: 'follow',
+    });
+
+    if (!upstream.ok && upstream.status !== 206) {
+      upstream = await fetch(ucUrl, {
+        headers: forwardHeaders,
+        redirect: 'follow',
+      });
+    }
+
+    if (!upstream.ok && upstream.status !== 206) {
+      res.statusCode = upstream.status || 500;
+      res.setHeader('Content-Type', 'application/json; charset=utf-8');
+      res.end(
+        JSON.stringify({
+          ok: false,
+          error: `Không thể mở luồng phát từ Google Drive (Mã lỗi ${upstream.status}). Vui lòng kiểm tra quyền chia sẻ công khai của tệp.`,
+        })
+      );
+      return;
+    }
+
+    const contentType = upstream.headers.get('content-type') || 'audio/mpeg';
+    if (contentType.includes('text/html')) {
+      res.statusCode = 403;
+      res.setHeader('Content-Type', 'application/json; charset=utf-8');
+      res.end(
+        JSON.stringify({
+          ok: false,
+          error: 'Tệp Google Drive cần được chia sẻ ở chế độ "Bất kỳ ai có đường liên kết đều có thể xem".',
+        })
+      );
+      return;
+    }
+
+    // Set streaming audio headers for HTML5 <audio> tag
+    res.statusCode = upstream.status; // 200 or 206 Partial Content
+    res.setHeader('Content-Type', contentType.includes('audio') ? contentType : 'audio/mp4');
+    res.setHeader('Content-Disposition', 'inline'); // Crucial: inline streaming, never attachment
+    res.setHeader('Accept-Ranges', 'bytes');
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Access-Control-Allow-Headers', '*');
+    res.setHeader('Access-Control-Allow-Methods', 'GET, HEAD, OPTIONS');
+    res.setHeader('Cache-Control', 'public, max-age=86400, stale-while-revalidate=604800');
+
+    const contentRange = upstream.headers.get('content-range');
+    if (contentRange) {
+      res.setHeader('Content-Range', contentRange);
+    }
+
+    const contentLength = upstream.headers.get('content-length');
+    if (contentLength) {
+      res.setHeader('Content-Length', contentLength);
+    }
+
+    // If HEAD request, close headers immediately
+    if (req.method === 'HEAD' || !upstream.body) {
+      res.end();
+      return;
+    }
+
+    // Stream web body directly to Node.js response and wait for completion to prevent serverless freeze
+    try {
+      await pipeline(Readable.fromWeb(upstream.body), res);
+    } catch (streamErr) {
+      if (
+        streamErr &&
+        streamErr.code !== 'ERR_STREAM_PREMATURE_CLOSE' &&
+        streamErr.name !== 'AbortError' &&
+        !res.writableEnded
+      ) {
+        console.warn('[streamFromDrive stream interrupted]:', streamErr?.message);
+      }
+    }
+  } catch (err) {
+    console.error('[streamFromDrive error]', err);
+    if (!res.headersSent) {
+      res.statusCode = 500;
+      res.setHeader('Content-Type', 'application/json; charset=utf-8');
+      res.end(JSON.stringify({ ok: false, error: err?.message || 'Lỗi phát nhạc từ Google Drive' }));
+    }
+  }
 }

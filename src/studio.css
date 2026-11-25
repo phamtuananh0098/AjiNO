@@ -2878,20 +2878,24 @@
 .console-hidden-engines {
   position: fixed !important;
   left: -9999px !important;
-  bottom: -9999px !important;
+  top: -9999px !important;
   width: 1px !important;
   height: 1px !important;
-  opacity: 0.001 !important;
+  opacity: 0 !important;
   pointer-events: none !important;
   overflow: hidden !important;
+  clip: rect(0, 0, 0, 0) !important;
+  clip-path: inset(50%) !important;
   z-index: -9999 !important;
 }
 
 .engine-iframe {
   width: 1px !important;
   height: 1px !important;
-  border: none !important;
-  opacity: 0.001 !important;
+  border: 0 !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
+  visibility: hidden !important;
 }
 
 .console-yt-box,

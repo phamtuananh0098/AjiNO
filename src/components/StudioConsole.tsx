@@ -348,12 +348,10 @@ export const StudioConsole: React.FC = () => {
           <iframe
             id="duyen-ca-console-yt-player"
             src={
-              youtubeId
-                ? youtubeId.startsWith('search:')
-                  ? `https://www.youtube-nocookie.com/embed?listType=search&list=${youtubeId.replace('search:', '')}&autoplay=1&enablejsapi=1`
-                  : `https://www.youtube-nocookie.com/embed/${youtubeId}?enablejsapi=1&autoplay=1&start=${Math.floor(
-                      mode === 'clip' ? currentTrack.trimStart || 0 : 0
-                    )}`
+              activeEngine === 'youtube' && youtubeId && !youtubeId.startsWith('search:')
+                ? `https://www.youtube-nocookie.com/embed/${youtubeId}?enablejsapi=1&autoplay=1&start=${Math.floor(
+                    mode === 'clip' ? currentTrack.trimStart || 0 : 0
+                  )}`
                 : 'about:blank'
             }
             allow="autoplay; encrypted-media"
@@ -364,7 +362,7 @@ export const StudioConsole: React.FC = () => {
           {/* Google Drive Audio Player */}
           <iframe
             id="duyen-ca-console-gdrive-player"
-            src={gdriveId ? `https://drive.google.com/file/d/${gdriveId}/preview` : 'about:blank'}
+            src={activeEngine === 'gdrive' && gdriveId ? `https://drive.google.com/file/d/${gdriveId}/preview` : 'about:blank'}
             allow="autoplay"
             title="Studio Google Drive Player"
             className="engine-iframe"
@@ -374,7 +372,7 @@ export const StudioConsole: React.FC = () => {
           <iframe
             id="duyen-ca-console-sc-player"
             src={
-              soundcloudUrl
+              activeEngine === 'soundcloud' && soundcloudUrl
                 ? `https://w.soundcloud.com/player/?url=${encodeURIComponent(soundcloudUrl)}&auto_play=true&hide_related=true&show_comments=false&show_user=true&show_reposts=false&show_teaser=false&visual=false`
                 : 'about:blank'
             }
@@ -386,7 +384,7 @@ export const StudioConsole: React.FC = () => {
           {/* Spotify Player */}
           <iframe
             id="duyen-ca-console-spotify-player"
-            src={spotifyId ? `https://open.spotify.com/embed/track/${spotifyId}?utm_source=generator&theme=0` : 'about:blank'}
+            src={activeEngine === 'spotify' && spotifyId ? `https://open.spotify.com/embed/track/${spotifyId}?utm_source=generator&theme=0` : 'about:blank'}
             allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture"
             title="Studio Spotify Player"
             className="engine-iframe"

@@ -10,8 +10,8 @@ import {
   isDirectAudioUrl,
 } from '../services/linkDetector';
 
-export function getGoogleDriveDirectStreamUrl(fileId: string): string {
-  return `https://drive.usercontent.google.com/download?id=${fileId}&export=download&confirm=t`;
+export function getGoogleDriveStreamUrl(fileId: string): string {
+  return `/api/gdrive/stream?id=${fileId}`;
 }
 
 export function resolvePlayableAudioUrl(track: Track): string {
@@ -20,7 +20,7 @@ export function resolvePlayableAudioUrl(track: Track): string {
   }
   const driveId = extractDriveFileId(track.url);
   if (driveId) {
-    return getGoogleDriveDirectStreamUrl(driveId);
+    return getGoogleDriveStreamUrl(driveId);
   }
   return track.url;
 }
@@ -207,18 +207,20 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
     const onError = () => {
       setLoading(false);
       setIsPlaying(false);
+      stopTicker();
       const track = currentTrackRef.current;
       if (!track) return;
 
-      // 1. If Google Drive: switch to official Google Drive preview player
+      // 1. If Google Drive: notify user honestly without running fake ticker
       const driveId = extractDriveFileId(track.url);
       if (driveId) {
-        console.info('[AudioEngine] Switching to Google Drive Native Preview Player:', driveId);
-        setActiveEngine('gdrive');
-        setGdriveId(driveId);
-        setIsPlaying(true);
-        startTicker(modeRef.current === 'clip' ? track.trimStart || 0 : 0, track);
-        pushToast(`✨ Đang phát qua Trình phát Google Drive: "${track.title}"`, 'success');
+        console.warn('[AudioEngine] Google Drive audio stream failed for:', driveId);
+        setIsPlaying(false);
+        setGdriveId(null);
+        pushToast(
+          `Không thể phát âm thanh từ Google Drive ("${track.title}"). Hãy chắc chắn tệp đã được bật quyền "Bất kỳ ai có đường liên kết đều có thể xem" trên Google Drive!`,
+          'error'
+        );
         return;
       }
 
@@ -233,20 +235,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
         return;
       }
 
-      // 3. If Web link (ZingMP3, NCT, etc.): search and play on YouTube embed
-      const query = `${track.title} ${track.artist || ''}`.trim();
-      if (query) {
-        console.info('[AudioEngine] Auto-fallback to YouTube Search stream:', query);
-        setActiveEngine('youtube');
-        setYoutubeId(`search:${encodeURIComponent(query)}`);
-        setIsPlaying(true);
-        setDuration(track.duration || 240);
-        startTicker(modeRef.current === 'clip' ? track.trimStart || 0 : 0, track);
-        pushToast(`✨ Đang mở bài hát qua luồng YouTube: "${track.title}"`, 'success');
-        return;
-      }
-
-      pushToast('Không thể phát tệp âm thanh này. Vui lòng kiểm tra lại liên kết nguồn.', 'error');
+      pushToast(`Không thể phát tệp âm thanh này ("${track.title}"). Vui lòng kiểm tra lại liên kết nguồn.`, 'error');
     };
 
     audio.addEventListener('play', onPlay);
@@ -408,7 +397,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
         return;
       }
 
-      // 4. Google Drive Audio Engine (High-speed direct CDN streaming)
+      // 4. Google Drive Audio Engine (Streaming via /api/gdrive/stream)
       const driveId = extractDriveFileId(track.url);
       if (driveId && !track.audioId) {
         setYoutubeId(null);
@@ -420,9 +409,10 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
 
         if (!audio) return;
 
-        const directUrl = getGoogleDriveDirectStreamUrl(driveId);
-        if (audio.src !== directUrl) {
-          audio.src = directUrl;
+        const streamUrl = getGoogleDriveStreamUrl(driveId);
+        const currentSrc = audio.src || '';
+        if (!currentSrc.endsWith(streamUrl)) {
+          audio.src = streamUrl;
           audio.load();
         }
 
@@ -436,39 +426,13 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
             setLoading(false);
           })
           .catch((err) => {
-            console.warn('[gdrive-direct-error, trying ucUrl]', err);
-            const ucUrl = `https://drive.google.com/uc?export=download&id=${driveId}&confirm=t`;
-            audio.src = ucUrl;
-            audio.load();
-            audio.currentTime = startPos;
-            audio
-              .play()
-              .then(() => {
-                setIsPlaying(true);
-                setLoading(false);
-              })
-              .catch(() => {
-                // Fallback: local/vercel 307 proxy
-                const proxyUrl = `/api/gdrive/stream?id=${driveId}`;
-                audio.src = proxyUrl;
-                audio.load();
-                audio.currentTime = startPos;
-                audio
-                  .play()
-                  .then(() => {
-                    setIsPlaying(true);
-                    setLoading(false);
-                  })
-                  .catch((finalErr) => {
-                    console.error('[gdrive-all-failed]', finalErr);
-                    setIsPlaying(false);
-                    setLoading(false);
-                    pushToast(
-                      `Không thể phát tệp Google Drive ("${track.title}"). Vui lòng kiểm tra quyền chia sẻ "Bất kỳ ai có đường liên kết" trên Google Drive!`,
-                      'error'
-                    );
-                  });
-              });
+            console.error('[gdrive-play-error]', err);
+            setIsPlaying(false);
+            setLoading(false);
+            pushToast(
+              `Không thể phát tệp Google Drive ("${track.title}"). Vui lòng kiểm tra quyền chia sẻ "Bất kỳ ai có đường liên kết" trên Google Drive!`,
+              'error'
+            );
           });
         return;
       }

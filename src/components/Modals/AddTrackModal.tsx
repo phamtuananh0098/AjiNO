@@ -152,24 +152,6 @@ export const AddTrackModal: React.FC<AddTrackModalProps> = ({
           }
         }
 
-        // For Google Drive: auto-cache in background to local studio storage
-        if (clientRes.platform === 'gdrive' || rawUrl.includes('drive.google.com')) {
-          importGoogleDriveAudio(rawUrl, clientRes.title ? `${clientRes.title}.mp3` : 'DriveAudio.mp3')
-            .then((res) => {
-              if (res.ok && res.audio) {
-                setUploadedAudioId(res.audio.id);
-                setDetectStatusMsg(`✨ Đã nạp thành công bài hát từ Google Drive vào Studio!`);
-                probeAudioDuration(res.audio.url).then((dur) => {
-                  if (dur > 0) {
-                    setDuration(dur);
-                    setTrimEnd(dur);
-                  }
-                }).catch(() => {});
-              }
-            })
-            .catch(() => {});
-        }
-
         setDetectStatusMsg(`✨ Đã nhận diện từ [${(clientRes.platform || 'Link').toUpperCase()}]: ${clientRes.title}`);
         if (!isSilent) {
           pushToast(`✨ Nhận diện thành công: "${clientRes.title}"!`, 'success');

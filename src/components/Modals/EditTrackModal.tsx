@@ -98,7 +98,7 @@ export const EditTrackModal: React.FC<EditTrackModalProps> = ({
       const playableUrl = track.audioId
         ? `/api/audio/${track.audioId}`
         : dId
-        ? `https://drive.usercontent.google.com/download?id=${dId}&export=download&confirm=t`
+        ? `/api/gdrive/stream?id=${dId}`
         : track.url;
 
       const audio = new Audio(playableUrl);
@@ -126,10 +126,7 @@ export const EditTrackModal: React.FC<EditTrackModalProps> = ({
       };
 
       const onError = () => {
-        if (dId && audio && !audio.src.includes('drive.usercontent.google.com')) {
-          audio.src = `https://drive.usercontent.google.com/download?id=${dId}&export=download&confirm=t`;
-          audio.load();
-        }
+        setPreviewPlaying(false);
       };
 
       const onEnded = () => setPreviewPlaying(false);
@@ -189,16 +186,7 @@ export const EditTrackModal: React.FC<EditTrackModalProps> = ({
       audio.currentTime = trimStart;
       audio.play().then(() => setPreviewPlaying(true)).catch(() => {
         setPreviewPlaying(false);
-        const dId = extractDriveFileId(track.url);
-        if (dId && !audio.src.includes('drive.usercontent.google.com')) {
-          audio.src = `https://drive.usercontent.google.com/download?id=${dId}&export=download&confirm=t`;
-          audio.currentTime = trimStart;
-          audio.play().then(() => setPreviewPlaying(true)).catch(() => {
-            pushToast('Không thể phát tệp Google Drive. Vui lòng đảm bảo tệp đã chia sẻ công khai.', 'error');
-          });
-          return;
-        }
-        pushToast('Không thể phát thử đoạn nhạc. Vui lòng kiểm tra lại đường dẫn.', 'error');
+        pushToast('Không thể phát thử đoạn nhạc. Vui lòng kiểm tra lại quyền truy cập nguồn nhạc.', 'error');
       });
     }
   };
@@ -226,12 +214,8 @@ export const EditTrackModal: React.FC<EditTrackModalProps> = ({
     } else {
       audio.currentTime = 0;
       audio.play().then(() => setPreviewPlaying(true)).catch(() => {
-        const dId = extractDriveFileId(track.url);
-        if (dId && !audio.src.includes('drive.usercontent.google.com')) {
-          audio.src = `https://drive.usercontent.google.com/download?id=${dId}&export=download&confirm=t`;
-          audio.currentTime = 0;
-          audio.play().then(() => setPreviewPlaying(true)).catch(() => {});
-        }
+        setPreviewPlaying(false);
+        pushToast('Không thể phát thử cả bài. Vui lòng kiểm tra lại quyền truy cập nguồn nhạc.', 'error');
       });
     }
   };
