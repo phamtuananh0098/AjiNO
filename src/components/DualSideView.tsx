@@ -182,7 +182,9 @@ export const DualSideView: React.FC<DualSideViewProps> = ({
                 </div>
               ) : (
                 groomSections.map((sec) => {
-                  const secTracks = groomTracks.filter((t) => t.sectionId === sec.id);
+                  const secTracks = groomTracks
+                    .filter((t) => t.sectionId === sec.id)
+                    .sort((a, b) => (a.order || 0) - (b.order || 0));
                   return (
                     <SectionCard
                       key={`groom_${sec.id}`}
@@ -252,7 +254,9 @@ export const DualSideView: React.FC<DualSideViewProps> = ({
                 </div>
               ) : (
                 brideSections.map((sec) => {
-                  const secTracks = brideTracks.filter((t) => t.sectionId === sec.id);
+                  const secTracks = brideTracks
+                    .filter((t) => t.sectionId === sec.id)
+                    .sort((a, b) => (a.order || 0) - (b.order || 0));
                   return (
                     <SectionCard
                       key={`bride_${sec.id}`}

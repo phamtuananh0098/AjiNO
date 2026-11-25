@@ -191,11 +191,25 @@ interface PlaylistContextType {
   deleteTrack: (id: string) => void;
   reorderTracks: (sectionId: string, newTracks: Track[]) => void;
   moveTrack: (trackId: string, targetSectionId: string) => void;
+  moveTrackOrder: (trackId: string, direction: 'up' | 'down') => void;
+  moveTrackToIndex: (trackId: string, targetSectionId: string, targetIndex: number) => void;
   setTheme: (theme: AppTheme) => void;
   setPreferences: (patch: Partial<Preferences>) => void;
   exportProject: () => void;
   importProject: (imported: PlaylistData) => void;
   refreshFromServer: () => Promise<void>;
+}
+
+function sortTracksNaturally(tracks: Track[], sections: Section[]): Track[] {
+  const sectionOrderMap = new Map<string, number>();
+  sections.forEach((s, idx) => sectionOrderMap.set(s.id, s.order ?? idx + 1));
+
+  return [...tracks].sort((a, b) => {
+    const secOrderA = sectionOrderMap.get(a.sectionId) ?? 999;
+    const secOrderB = sectionOrderMap.get(b.sectionId) ?? 999;
+    if (secOrderA !== secOrderB) return secOrderA - secOrderB;
+    return (a.order || 0) - (b.order || 0);
+  });
 }
 
 const PlaylistContext = createContext<PlaylistContextType | null>(null);
@@ -393,8 +407,10 @@ export function PlaylistProvider({ children }: { children: React.ReactNode }) {
     (updater: (prev: PlaylistData) => PlaylistData) => {
       setPlaylist((prev) => {
         const updated = updater(prev);
+        const sortedTracks = sortTracksNaturally(updated.tracks, updated.sections);
         const next: PlaylistData = {
           ...updated,
+          tracks: sortedTracks,
           isDefault: false,
           updatedAt: Date.now(),
         };
@@ -551,17 +567,190 @@ export function PlaylistProvider({ children }: { children: React.ReactNode }) {
   const moveTrack = useCallback(
     (trackId: string, targetSectionId: string) => {
       updatePlaylistState((prev) => {
+        const targetTrack = prev.tracks.find((t) => t.id === trackId);
+        if (!targetTrack) return prev;
+
+        const targetSec = prev.sections.find((s) => s.id === targetSectionId);
         const targetSectionTracks = prev.tracks.filter((t) => t.sectionId === targetSectionId);
+
+        const updatedTracks = prev.tracks.map((t) =>
+          t.id === trackId
+            ? { ...t, sectionId: targetSectionId, order: targetSectionTracks.length + 1 }
+            : t
+        );
+
+        pushToast(`Đã chuyển bài "${targetTrack.title}" sang giai đoạn "${targetSec?.name || 'mới'}"`, 'success');
         return {
           ...prev,
-          tracks: prev.tracks.map((t) =>
-            t.id === trackId
-              ? { ...t, sectionId: targetSectionId, order: targetSectionTracks.length + 1 }
-              : t
-          ),
+          tracks: updatedTracks,
         };
       });
-      pushToast('Đã chuyển bài hát sang giai đoạn mới', 'success');
+    },
+    [updatePlaylistState, pushToast]
+  );
+
+  const moveTrackOrder = useCallback(
+    (trackId: string, direction: 'up' | 'down') => {
+      updatePlaylistState((prev) => {
+        const targetTrack = prev.tracks.find((t) => t.id === trackId);
+        if (!targetTrack) return prev;
+
+        const currentSectionId = targetTrack.sectionId;
+        const currentSecTracks = prev.tracks
+          .filter((t) => t.sectionId === currentSectionId)
+          .sort((a, b) => (a.order || 0) - (b.order || 0));
+
+        const currentIndex = currentSecTracks.findIndex((t) => t.id === trackId);
+        if (currentIndex === -1) return prev;
+
+        if (direction === 'up') {
+          if (currentIndex === 0) {
+            // Check if there is a preceding section to move into
+            const sortedSections = [...prev.sections].sort((a, b) => (a.order || 0) - (b.order || 0));
+            const secIndex = sortedSections.findIndex((s) => s.id === currentSectionId);
+            if (secIndex > 0) {
+              const prevSection = sortedSections[secIndex - 1];
+              const prevSecTracks = prev.tracks.filter((t) => t.sectionId === prevSection.id);
+              const updatedTrack: Track = {
+                ...targetTrack,
+                sectionId: prevSection.id,
+                order: prevSecTracks.length + 1,
+              };
+              const remainingCurrentTracks = currentSecTracks
+                .filter((t) => t.id !== trackId)
+                .map((t, idx) => ({ ...t, order: idx + 1 }));
+
+              const otherTracks = prev.tracks.filter(
+                (t) => t.sectionId !== currentSectionId && t.id !== trackId
+              );
+
+              pushToast(`Đã chuyển bài "${targetTrack.title}" lên mục "${prevSection.name}"`, 'success');
+              return {
+                ...prev,
+                tracks: [...otherTracks, ...remainingCurrentTracks, updatedTrack],
+              };
+            }
+            pushToast(`"${targetTrack.title}" đã ở đầu giai đoạn này`, 'info');
+            return prev;
+          }
+
+          // Normal swap within same section
+          const newSecTracks = [...currentSecTracks];
+          const temp = newSecTracks[currentIndex - 1];
+          newSecTracks[currentIndex - 1] = newSecTracks[currentIndex];
+          newSecTracks[currentIndex] = temp;
+
+          const reindexed = newSecTracks.map((t, idx) => ({ ...t, order: idx + 1 }));
+          const otherTracks = prev.tracks.filter((t) => t.sectionId !== currentSectionId);
+
+          return {
+            ...prev,
+            tracks: [...otherTracks, ...reindexed],
+          };
+        } else {
+          // direction === 'down'
+          if (currentIndex === currentSecTracks.length - 1) {
+            // Check if there is a next section to move into
+            const sortedSections = [...prev.sections].sort((a, b) => (a.order || 0) - (b.order || 0));
+            const secIndex = sortedSections.findIndex((s) => s.id === currentSectionId);
+            if (secIndex < sortedSections.length - 1) {
+              const nextSection = sortedSections[secIndex + 1];
+              const nextSecTracks = prev.tracks
+                .filter((t) => t.sectionId === nextSection.id)
+                .sort((a, b) => (a.order || 0) - (b.order || 0))
+                .map((t, idx) => ({ ...t, order: idx + 2 }));
+
+              const updatedTrack: Track = {
+                ...targetTrack,
+                sectionId: nextSection.id,
+                order: 1,
+              };
+              const remainingCurrentTracks = currentSecTracks
+                .filter((t) => t.id !== trackId)
+                .map((t, idx) => ({ ...t, order: idx + 1 }));
+
+              const otherTracks = prev.tracks.filter(
+                (t) => t.sectionId !== currentSectionId && t.sectionId !== nextSection.id
+              );
+
+              pushToast(`Đã chuyển bài "${targetTrack.title}" xuống mục "${nextSection.name}"`, 'success');
+              return {
+                ...prev,
+                tracks: [...otherTracks, ...remainingCurrentTracks, updatedTrack, ...nextSecTracks],
+              };
+            }
+            pushToast(`"${targetTrack.title}" đã ở cuối giai đoạn này`, 'info');
+            return prev;
+          }
+
+          // Normal swap with next track
+          const newSecTracks = [...currentSecTracks];
+          const temp = newSecTracks[currentIndex + 1];
+          newSecTracks[currentIndex + 1] = newSecTracks[currentIndex];
+          newSecTracks[currentIndex] = temp;
+
+          const reindexed = newSecTracks.map((t, idx) => ({ ...t, order: idx + 1 }));
+          const otherTracks = prev.tracks.filter((t) => t.sectionId !== currentSectionId);
+
+          return {
+            ...prev,
+            tracks: [...otherTracks, ...reindexed],
+          };
+        }
+      });
+    },
+    [updatePlaylistState, pushToast]
+  );
+
+  const moveTrackToIndex = useCallback(
+    (trackId: string, targetSectionId: string, targetIndex: number) => {
+      updatePlaylistState((prev) => {
+        const targetTrack = prev.tracks.find((t) => t.id === trackId);
+        if (!targetTrack) return prev;
+
+        if (targetTrack.sectionId === targetSectionId) {
+          const secTracks = prev.tracks
+            .filter((t) => t.sectionId === targetSectionId)
+            .sort((a, b) => (a.order || 0) - (b.order || 0));
+
+          const filtered = secTracks.filter((t) => t.id !== trackId);
+          const safeIndex = Math.max(0, Math.min(targetIndex, filtered.length));
+          filtered.splice(safeIndex, 0, targetTrack);
+          const reindexed = filtered.map((t, idx) => ({ ...t, order: idx + 1 }));
+          const otherTracks = prev.tracks.filter((t) => t.sectionId !== targetSectionId);
+
+          return {
+            ...prev,
+            tracks: [...otherTracks, ...reindexed],
+          };
+        } else {
+          const oldSecTracks = prev.tracks
+            .filter((t) => t.sectionId === targetTrack.sectionId && t.id !== trackId)
+            .sort((a, b) => (a.order || 0) - (b.order || 0))
+            .map((t, idx) => ({ ...t, order: idx + 1 }));
+
+          const newSecTracks = prev.tracks
+            .filter((t) => t.sectionId === targetSectionId)
+            .sort((a, b) => (a.order || 0) - (b.order || 0));
+
+          const updatedTrack: Track = { ...targetTrack, sectionId: targetSectionId };
+          const safeIndex = Math.max(0, Math.min(targetIndex, newSecTracks.length));
+          newSecTracks.splice(safeIndex, 0, updatedTrack);
+          const reindexedNew = newSecTracks.map((t, idx) => ({ ...t, order: idx + 1 }));
+
+          const otherTracks = prev.tracks.filter(
+            (t) => t.sectionId !== targetTrack.sectionId && t.sectionId !== targetSectionId
+          );
+
+          const targetSec = prev.sections.find((s) => s.id === targetSectionId);
+          pushToast(`Đã chuyển bài "${targetTrack.title}" sang mục "${targetSec?.name || 'mới'}"`, 'success');
+
+          return {
+            ...prev,
+            tracks: [...otherTracks, ...oldSecTracks, ...reindexedNew],
+          };
+        }
+      });
     },
     [updatePlaylistState, pushToast]
   );
@@ -648,6 +837,8 @@ export function PlaylistProvider({ children }: { children: React.ReactNode }) {
         deleteTrack,
         reorderTracks,
         moveTrack,
+        moveTrackOrder,
+        moveTrackToIndex,
         setTheme,
         setPreferences,
         exportProject,

@@ -1,11 +1,10 @@
-import React from 'react';
-import type { Track, WeddingSide } from '../types';
+import React, { useState } from 'react';
+import type { Track } from '../types';
 import { usePlayer } from '../state/playerContext';
 import { usePlaylist } from '../state/playlistContext';
 import {
   PlayIcon,
   PauseIcon,
-  ScissorsIcon,
   EditIcon,
   TrashIcon,
   HeartIcon,
@@ -15,7 +14,10 @@ import {
 interface TrackItemProps {
   track: Track;
   index: number;
+  totalInList?: number;
   onEdit: (track: Track) => void;
+  onMoveUp?: (trackId: string) => void;
+  onMoveDown?: (trackId: string) => void;
 }
 
 function formatTime(sec: number | null | undefined): string {
@@ -25,9 +27,19 @@ function formatTime(sec: number | null | undefined): string {
   return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
 }
 
-export const TrackItem: React.FC<TrackItemProps> = ({ track, index, onEdit }) => {
+export const TrackItem: React.FC<TrackItemProps> = ({
+  track,
+  index,
+  totalInList,
+  onEdit,
+  onMoveUp,
+  onMoveDown,
+}) => {
   const { currentTrack, isPlaying, playTrack, togglePlay } = usePlayer();
-  const { playlist, updateTrack, deleteTrack, moveTrack } = usePlaylist();
+  const { playlist, updateTrack, deleteTrack, moveTrack, moveTrackOrder, moveTrackToIndex } = usePlaylist();
+
+  const [isDragging, setIsDragging] = useState(false);
+  const [dropPosition, setDropPosition] = useState<'top' | 'bottom' | null>(null);
 
   const isCurrent = currentTrack?.id === track.id;
   const isPlayingNow = isCurrent && isPlaying;
@@ -60,15 +72,81 @@ export const TrackItem: React.FC<TrackItemProps> = ({ track, index, onEdit }) =>
     }
   };
 
+  const handleMoveUpClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (onMoveUp) {
+      onMoveUp(track.id);
+    } else {
+      moveTrackOrder(track.id, 'up');
+    }
+  };
+
+  const handleMoveDownClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (onMoveDown) {
+      onMoveDown(track.id);
+    } else {
+      moveTrackOrder(track.id, 'down');
+    }
+  };
+
+  // Drag and drop handlers
+  const handleDragStart = (e: React.DragEvent) => {
+    e.dataTransfer.setData('text/plain', track.id);
+    e.dataTransfer.effectAllowed = 'move';
+    setIsDragging(true);
+  };
+
+  const handleDragEnd = () => {
+    setIsDragging(false);
+    setDropPosition(null);
+  };
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    const rect = e.currentTarget.getBoundingClientRect();
+    const midY = rect.top + rect.height / 2;
+    if (e.clientY < midY) {
+      setDropPosition('top');
+    } else {
+      setDropPosition('bottom');
+    }
+  };
+
+  const handleDragLeave = () => {
+    setDropPosition(null);
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    const draggedTrackId = e.dataTransfer.getData('text/plain');
+    if (!draggedTrackId || draggedTrackId === track.id) {
+      setDropPosition(null);
+      return;
+    }
+    const targetIdx = dropPosition === 'bottom' ? index + 1 : index;
+    moveTrackToIndex(draggedTrackId, track.sectionId, targetIdx);
+    setDropPosition(null);
+  };
+
   const hasTrim = track.trimStart > 0 || (track.trimEnd != null && track.trimEnd < (track.duration || 999999));
 
   return (
     <div
       className={`track-item-card track-item-card--${track.side || 'both'} ${
         isCurrent ? 'track-item--active' : ''
-      } ${isPlayingNow ? 'track-item--playing' : ''}`}
+      } ${isPlayingNow ? 'track-item--playing' : ''} ${
+        isDragging ? 'track-item--dragging' : ''
+      } ${dropPosition ? `track-drop--${dropPosition}` : ''}`}
+      draggable
+      onDragStart={handleDragStart}
+      onDragEnd={handleDragEnd}
+      onDragOver={handleDragOver}
+      onDragLeave={handleDragLeave}
+      onDrop={handleDrop}
     >
-      {/* Main Track Row: Play button + Info + Quick Actions */}
+      {/* Main Track Row: Stepper + Play button + Info + Quick Actions */}
       <div className="track-item-header-row">
         {/* Play/Pause Button */}
         <button
@@ -80,8 +158,26 @@ export const TrackItem: React.FC<TrackItemProps> = ({ track, index, onEdit }) =>
           {isPlayingNow ? <PauseIcon /> : <PlayIcon />}
         </button>
 
-        {/* Track Order Number */}
-        <span className="track-order-num">{index + 1}</span>
+        {/* Order Stepper (Move Up ▲ / Number / Move Down ▼) */}
+        <div className="track-order-stepper" title="Di chuyển thứ tự bài hát lên/xuống">
+          <button
+            type="button"
+            className="track-stepper-btn track-stepper-btn--up"
+            onClick={handleMoveUpClick}
+            title="Đẩy bài hát lên trên (hoặc chuyển sang mục trước)"
+          >
+            ▲
+          </button>
+          <span className="track-order-num">{index + 1}</span>
+          <button
+            type="button"
+            className="track-stepper-btn track-stepper-btn--down"
+            onClick={handleMoveDownClick}
+            title="Đẩy bài hát xuống dưới (hoặc chuyển sang mục sau)"
+          >
+            ▼
+          </button>
+        </div>
 
         {/* Thumbnail if available */}
         {track.thumbnail && (
@@ -126,6 +222,30 @@ export const TrackItem: React.FC<TrackItemProps> = ({ track, index, onEdit }) =>
 
         {/* Action Buttons */}
         <div className="track-actions">
+          {/* Quick Move to another stage/section (Works on Phone, iPad & PC) */}
+          {playlist.sections.length > 1 && (
+            <div className="track-move-trigger" title="Chuyển bài hát sang giai đoạn khác">
+              <button type="button" className="track-move-btn" tabIndex={-1}>
+                <span className="track-move-icon">⇄</span>
+                <span className="track-move-text">Mục</span>
+              </button>
+              <select
+                className="track-move-overlay-select"
+                value={track.sectionId}
+                onChange={handleMoveSection}
+                title="Chuyển bài hát sang giai đoạn khác"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <option value="" disabled>-- Chuyển sang giai đoạn khác --</option>
+                {playlist.sections.map((s) => (
+                  <option key={s.id} value={s.id}>
+                    {s.order}. {s.name} ({s.side === 'groom' ? 'Nhà Trai' : s.side === 'bride' ? 'Nhà Gái' : 'Cả hai'})
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
+
           {/* Link Web Icon (Desktop only) */}
           {track.url && /^https?:\/\//i.test(track.url) && (
             <a
@@ -138,22 +258,6 @@ export const TrackItem: React.FC<TrackItemProps> = ({ track, index, onEdit }) =>
             >
               <LinkIcon />
             </a>
-          )}
-
-          {/* Move to another section (Desktop only) */}
-          {playlist.sections.length > 1 && (
-            <select
-              className="track-move-select desktop-only-action"
-              value={track.sectionId}
-              onChange={handleMoveSection}
-              title="Chuyển sang giai đoạn khác"
-            >
-              {playlist.sections.map((s) => (
-                <option key={s.id} value={s.id}>
-                  {s.name}
-                </option>
-              ))}
-            </select>
           )}
 
           {/* Edit button */}

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import type { Section, Track } from '../types';
 import { TrackItem } from './TrackItem';
 import { usePlaylist } from '../state/playlistContext';
@@ -31,28 +31,59 @@ export const SectionCard: React.FC<SectionCardProps> = ({
   onAddTrack,
   onEditTrack,
 }) => {
-  const { deleteSection } = usePlaylist();
+  const { deleteSection, moveTrackOrder, moveTrackToIndex } = usePlaylist();
   const { playTrack } = usePlayer();
   const [collapsed, setCollapsed] = useState(false);
+  const [isDragOver, setIsDragOver] = useState(false);
 
-  const totalDuration = tracks.reduce((acc, t) => acc + (t.duration || 0), 0);
+  // Always guarantee tracks inside section are sorted by order
+  const sortedTracks = useMemo(() => {
+    return [...tracks].sort((a, b) => (a.order || 0) - (b.order || 0));
+  }, [tracks]);
+
+  const totalDuration = sortedTracks.reduce((acc, t) => acc + (t.duration || 0), 0);
 
   const handlePlayFirst = (e: React.MouseEvent) => {
     e.stopPropagation();
-    if (tracks.length > 0) {
-      playTrack(tracks[0], 'clip');
+    if (sortedTracks.length > 0) {
+      playTrack(sortedTracks[0], 'clip');
     }
   };
 
   const handleDelete = (e: React.MouseEvent) => {
     e.stopPropagation();
-    if (window.confirm(`Xóa giai đoạn "${section.name}" và toàn bộ ${tracks.length} bài hát trong đó?`)) {
+    if (window.confirm(`Xóa giai đoạn "${section.name}" và toàn bộ ${sortedTracks.length} bài hát trong đó?`)) {
       deleteSection(section.id);
     }
   };
 
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    if (!isDragOver) setIsDragOver(true);
+  };
+
+  const handleDragLeave = () => {
+    setIsDragOver(false);
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragOver(false);
+    const draggedTrackId = e.dataTransfer.getData('text/plain');
+    if (!draggedTrackId) return;
+    moveTrackToIndex(draggedTrackId, section.id, sortedTracks.length);
+  };
+
   return (
-    <div className={`section-panel section-panel--${section.tone || 'rose'}`}>
+    <div
+      className={`section-panel section-panel--${section.tone || 'rose'} ${
+        isDragOver ? 'section-drag-over' : ''
+      }`}
+      onDragOver={handleDragOver}
+      onDragLeave={handleDragLeave}
+      onDrop={handleDrop}
+    >
       {/* Section Header */}
       <div className="section-header" onClick={() => setCollapsed(!collapsed)}>
         <div className="section-header-left">
@@ -68,14 +99,14 @@ export const SectionCard: React.FC<SectionCardProps> = ({
 
         <div className="section-header-right">
           <div className="section-counts">
-            <span className="count-tracks">{tracks.length} bài</span>
+            <span className="count-tracks">{sortedTracks.length} bài</span>
             {totalDuration > 0 && (
               <span className="count-duration">· {formatSectionDuration(totalDuration)}</span>
             )}
           </div>
 
           {/* Quick Play All In Section */}
-          {tracks.length > 0 && (
+          {sortedTracks.length > 0 && (
             <button
               type="button"
               className="section-play-btn"
@@ -129,7 +160,7 @@ export const SectionCard: React.FC<SectionCardProps> = ({
       {/* Track List inside this Section */}
       {!collapsed && (
         <div className="section-body">
-          {tracks.length === 0 ? (
+          {sortedTracks.length === 0 ? (
             <div className="empty-section-placeholder">
               <p>Chưa có bài hát nào trong giai đoạn này.</p>
               <button
@@ -142,12 +173,15 @@ export const SectionCard: React.FC<SectionCardProps> = ({
             </div>
           ) : (
             <div className="tracks-container">
-              {tracks.map((track, idx) => (
+              {sortedTracks.map((track, idx) => (
                 <TrackItem
                   key={track.id}
                   track={track}
                   index={idx}
+                  totalInList={sortedTracks.length}
                   onEdit={onEditTrack}
+                  onMoveUp={() => moveTrackOrder(track.id, 'up')}
+                  onMoveDown={() => moveTrackOrder(track.id, 'down')}
                 />
               ))}
             </div>

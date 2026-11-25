@@ -34,12 +34,13 @@ export const EditTrackModal: React.FC<EditTrackModalProps> = ({
   open,
   onClose,
 }) => {
-  const { updateTrack } = usePlaylist();
+  const { updateTrack, moveTrack, playlist } = usePlaylist();
   const { pushToast } = useToast();
 
   const [title, setTitle] = useState('');
   const [artist, setArtist] = useState('');
   const [side, setSide] = useState<WeddingSide>('both');
+  const [sectionId, setSectionId] = useState<string>(track?.sectionId || '');
   const [thumbnail, setThumbnail] = useState<string>('');
   const [note, setNote] = useState('');
   const [trimStart, setTrimStart] = useState<number>(0);
@@ -91,6 +92,7 @@ export const EditTrackModal: React.FC<EditTrackModalProps> = ({
       setFadeIn(track.fadeIn != null ? track.fadeIn : 2);
       setFadeOut(track.fadeOut != null ? track.fadeOut : 2);
       setFavorite(!!track.favorite);
+      setSectionId(track.sectionId || '');
 
       const dId = extractDriveFileId(track.url);
       const playableUrl = track.audioId
@@ -336,6 +338,10 @@ export const EditTrackModal: React.FC<EditTrackModalProps> = ({
       favorite,
     });
 
+    if (sectionId && sectionId !== track.sectionId) {
+      moveTrack(track.id, sectionId);
+    }
+
     handleStopPreview();
     pushToast(`Đã lưu thay đổi cho bài "${title}"`, 'success');
     onClose();
@@ -384,6 +390,25 @@ export const EditTrackModal: React.FC<EditTrackModalProps> = ({
                 <span>💍 Cả Hai Bên</span>
               </button>
             </div>
+          </div>
+
+          {/* Section (Phase) Selector */}
+          <div className="form-group mb-3">
+            <label className="form-label font-bold text-sm">Giai đoạn phát tiệc cưới (Mục kịch bản)</label>
+            <select
+              className="form-input"
+              value={sectionId}
+              onChange={(e) => setSectionId(e.target.value)}
+            >
+              {playlist.sections.map((s) => (
+                <option key={s.id} value={s.id}>
+                  {s.order}. {s.name} ({s.side === 'groom' ? 'Nhà Trai' : s.side === 'bride' ? 'Nhà Gái' : 'Cả Hai Bên'})
+                </option>
+              ))}
+            </select>
+            <span className="form-hint text-xs text-gray-500 mt-1 block">
+              💡 Chuyển bài hát này sang giai đoạn khác nếu muốn đổi kịch bản chương trình.
+            </span>
           </div>
 
           <div className="form-row-2">

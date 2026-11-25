@@ -711,13 +711,57 @@
   border-color: var(--wine);
 }
 
+/* Order Stepper (Move Up / Number / Move Down) */
+.track-order-stepper {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1px;
+  flex-shrink: 0;
+  width: 24px;
+  min-width: 24px;
+  user-select: none;
+}
+
+.track-stepper-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 13px;
+  padding: 0;
+  background: transparent;
+  border: none;
+  border-radius: 3px;
+  color: var(--ink-3);
+  font-size: 8px;
+  line-height: 1;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.track-stepper-btn:hover {
+  background: var(--paper-2);
+  color: var(--wine);
+  transform: scale(1.15);
+}
+
+.track-stepper-btn:active {
+  transform: scale(0.9);
+  background: var(--gold);
+  color: #fff;
+}
+
 .track-order-num {
   font-family: var(--font-mono);
   font-size: 0.8rem;
-  color: var(--ink-3);
+  font-weight: 700;
+  color: var(--ink-2);
   min-width: 16px;
   flex-shrink: 0;
   text-align: center;
+  line-height: 1.1;
 }
 
 .track-thumb-cover {
@@ -855,6 +899,85 @@
   color: var(--ink-2);
   font-size: 0.72rem;
   max-width: 170px;
+}
+
+/* Quick Move Section Trigger (Available on all devices) */
+.track-move-trigger {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.track-move-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.2rem;
+  padding: 0.2rem 0.42rem;
+  background: var(--paper-2);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--ink-2);
+  cursor: pointer;
+  pointer-events: none;
+  transition: all 0.15s ease;
+  white-space: nowrap;
+}
+
+.track-move-trigger:hover .track-move-btn {
+  border-color: var(--gold);
+  color: var(--wine);
+  background: #fff;
+}
+
+.track-move-icon {
+  font-size: 0.82rem;
+  font-weight: bold;
+  color: var(--gold);
+}
+
+.track-move-text {
+  font-size: 0.7rem;
+}
+
+.track-move-overlay-select {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0;
+  cursor: pointer;
+  z-index: 3;
+  -webkit-appearance: menulist;
+}
+
+/* Drag & Drop Reordering Indicators */
+.track-item-card {
+  transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
+}
+
+.track-item-card.track-item--dragging {
+  opacity: 0.45;
+  transform: scale(0.98);
+  border-style: dashed !important;
+}
+
+.track-item-card.track-drop--top {
+  border-top: 3px solid var(--gold) !important;
+  box-shadow: 0 -4px 8px rgba(212, 175, 55, 0.25);
+}
+
+.track-item-card.track-drop--bottom {
+  border-bottom: 3px solid var(--gold) !important;
+  box-shadow: 0 4px 8px rgba(212, 175, 55, 0.25);
+}
+
+.section-panel.section-drag-over {
+  border-color: var(--gold) !important;
+  background: rgba(212, 175, 55, 0.05);
 }
 
 /* Cue banner */
