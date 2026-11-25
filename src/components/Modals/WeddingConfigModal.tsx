@@ -8,6 +8,25 @@ interface WeddingConfigModalProps {
   onClose: () => void;
 }
 
+/**
+ * Parses couple string like "Minh Quân & Thùy Dung", "Minh Quân - Thùy Dung",
+ * "Quân và Dung", "Tuấn + Mai", "Anh x Phương" into Groom & Bride names.
+ */
+function parseCoupleNames(coupleStr: string): { groom: string; bride: string } | null {
+  if (!coupleStr || !coupleStr.trim()) return null;
+  // Match delimiters: &, và, va, -, –, —, +, /, x, X, ❤️, 💍
+  const delimiterRegex = /\s*(?:&|\s+(?:và|va|v[aà]|x)\s+|\-|\–|\—|\+|\/|❤️|💍)\s*/i;
+  const parts = coupleStr.split(delimiterRegex);
+  if (parts.length >= 2) {
+    const groom = parts[0].trim();
+    const bride = parts.slice(1).join(' & ').trim();
+    if (groom && bride) {
+      return { groom, bride };
+    }
+  }
+  return null;
+}
+
 export const WeddingConfigModal: React.FC<WeddingConfigModalProps> = ({ open, onClose }) => {
   const { playlist, updateMeta } = usePlaylist();
   const { pushToast } = useToast();
@@ -27,8 +46,8 @@ export const WeddingConfigModal: React.FC<WeddingConfigModalProps> = ({ open, on
     if (open) {
       setTitle(playlist.meta.title || '');
       setCouple(playlist.meta.couple || '');
-      setGroomName(playlist.meta.groomName || 'Minh Quân (Họ Nhà Trai)');
-      setBrideName(playlist.meta.brideName || 'Thùy Dung (Họ Nhà Gái)');
+      setGroomName(playlist.meta.groomName || 'Minh Quân');
+      setBrideName(playlist.meta.brideName || 'Thùy Dung');
       setGroomMusicStyle(playlist.meta.groomMusicStyle || 'Pop Rock, Acoustic, Ballad vui tươi, Gu nhạc chú rể');
       setBrideMusicStyle(playlist.meta.brideMusicStyle || 'Ballad lãng mạn, Nhạc Hoa, K-Pop, Gu nhạc cô dâu');
       setDate(playlist.meta.date || '');
@@ -39,6 +58,59 @@ export const WeddingConfigModal: React.FC<WeddingConfigModalProps> = ({ open, on
   }, [open, playlist.meta]);
 
   if (!open) return null;
+
+  // 1. When editing Couple Name -> Auto parse & update groomName & brideName
+  const handleCoupleChange = (val: string) => {
+    setCouple(val);
+    const parsed = parseCoupleNames(val);
+    if (parsed) {
+      setGroomName(parsed.groom);
+      setBrideName(parsed.bride);
+    }
+  };
+
+  // 2. When editing Groom Name -> Auto sync to Couple Name
+  const handleGroomNameChange = (val: string) => {
+    setGroomName(val);
+    if (val.trim() && brideName.trim()) {
+      setCouple(`${val.trim()} & ${brideName.trim()}`);
+    } else if (val.trim()) {
+      setCouple(val.trim());
+    }
+  };
+
+  // 3. When editing Bride Name -> Auto sync to Couple Name
+  const handleBrideNameChange = (val: string) => {
+    setBrideName(val);
+    if (groomName.trim() && val.trim()) {
+      setCouple(`${groomName.trim()} & ${val.trim()}`);
+    } else if (val.trim()) {
+      setCouple(val.trim());
+    }
+  };
+
+  // 4. Swap Groom & Bride Names and Music Styles
+  const handleSwapSides = () => {
+    const newGroom = brideName;
+    const newBride = groomName;
+    const newGroomStyle = brideMusicStyle;
+    const newBrideStyle = groomMusicStyle;
+
+    setGroomName(newGroom);
+    setBrideName(newBride);
+    setGroomMusicStyle(newGroomStyle);
+    setBrideMusicStyle(newBrideStyle);
+
+    if (newGroom.trim() && newBride.trim()) {
+      setCouple(`${newGroom.trim()} & ${newBride.trim()}`);
+    } else if (newGroom.trim()) {
+      setCouple(newGroom.trim());
+    } else if (newBride.trim()) {
+      setCouple(newBride.trim());
+    }
+
+    pushToast('Đã hoán đổi vị trí Nhà Trai ⇄ Nhà Gái thành công!', 'success');
+  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -72,16 +144,44 @@ export const WeddingConfigModal: React.FC<WeddingConfigModalProps> = ({ open, on
         </div>
 
         <form onSubmit={handleSubmit} className="modal-form">
+          {/* Main Couple Name Input with Auto-Parse */}
           <div className="form-group">
-            <label className="form-label">Tên cặp đôi hiển thị chung *</label>
+            <div className="flex items-center justify-between">
+              <label className="form-label font-bold text-base">Tên cặp đôi hiển thị chung *</label>
+              <span className="text-xs text-amber-700 bg-amber-50 px-2 py-0.5 rounded border border-amber-200">
+                ⚡ Tự động phân tích 2 bên
+              </span>
+            </div>
             <input
               type="text"
-              className="form-input form-input--lg"
-              placeholder="Ví dụ: Minh Quân & Thùy Dung"
+              className="form-input form-input--lg font-serif text-lg font-bold"
+              placeholder="Ví dụ: Minh Quân & Thùy Dung (hoặc Quân và Dung)"
               value={couple}
-              onChange={(e) => setCouple(e.target.value)}
+              onChange={(e) => handleCoupleChange(e.target.value)}
               required
             />
+            <span className="form-hint text-xs text-gray-500 mt-1 block">
+              💡 Gợi ý: Gõ <b>Tên Chú Rể & Tên Cô Dâu</b> (dùng <code>&</code>, <code>và</code>, <code>-</code> hoặc <code>+</code>) hệ thống sẽ tự động cập nhật xuống 2 bên Nhà Trai và Nhà Gái bên dưới.
+            </span>
+          </div>
+
+          {/* Quick Swap Toolbar */}
+          <div className="swap-sides-bar">
+            <div className="swap-sides-info">
+              <span className="swap-hint-icon">💍</span>
+              <span className="swap-hint-text">
+                Bên trái: <b>🤵 Nhà Trai</b> · Bên phải: <b>👰 Nhà Gái</b>
+              </span>
+            </div>
+            <button
+              type="button"
+              className="swap-sides-btn"
+              onClick={handleSwapSides}
+              title="Hoán đổi tên và thông tin giữa Nhà Trai và Nhà Gái"
+            >
+              <span className="swap-btn-icon">⇄</span>
+              <span>Hoán đổi Nhà Trai ⇄ Nhà Gái</span>
+            </button>
           </div>
 
           {/* Dual Side Personalization Group */}
@@ -90,7 +190,7 @@ export const WeddingConfigModal: React.FC<WeddingConfigModalProps> = ({ open, on
             <div className="config-side-col config-side-col--groom">
               <div className="config-side-title">
                 <span>🤵</span>
-                <b>HỌ NHÀ TRAI</b>
+                <b>HỌ NHÀ TRAI (CHÚ RỂ)</b>
               </div>
               <div className="form-group">
                 <label className="form-label">Tên đại diện Chú Rể / Nhà Trai</label>
@@ -99,7 +199,7 @@ export const WeddingConfigModal: React.FC<WeddingConfigModalProps> = ({ open, on
                   className="form-input"
                   placeholder="Ví dụ: Minh Quân"
                   value={groomName}
-                  onChange={(e) => setGroomName(e.target.value)}
+                  onChange={(e) => handleGroomNameChange(e.target.value)}
                 />
               </div>
               <div className="form-group">
@@ -118,7 +218,7 @@ export const WeddingConfigModal: React.FC<WeddingConfigModalProps> = ({ open, on
             <div className="config-side-col config-side-col--bride">
               <div className="config-side-title">
                 <span>👰</span>
-                <b>HỌ NHÀ GÁI</b>
+                <b>HỌ NHÀ GÁI (CÔ DÂU)</b>
               </div>
               <div className="form-group">
                 <label className="form-label">Tên đại diện Cô Dâu / Nhà Gái</label>
@@ -127,7 +227,7 @@ export const WeddingConfigModal: React.FC<WeddingConfigModalProps> = ({ open, on
                   className="form-input"
                   placeholder="Ví dụ: Thùy Dung"
                   value={brideName}
-                  onChange={(e) => setBrideName(e.target.value)}
+                  onChange={(e) => handleBrideNameChange(e.target.value)}
                 />
               </div>
               <div className="form-group">
@@ -143,7 +243,7 @@ export const WeddingConfigModal: React.FC<WeddingConfigModalProps> = ({ open, on
             </div>
           </div>
 
-          <div className="form-group">
+          <div className="form-group mt-3">
             <label className="form-label">Tiêu đề buổi lễ / Buổi tiệc</label>
             <input
               type="text"
