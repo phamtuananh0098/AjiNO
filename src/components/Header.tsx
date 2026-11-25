@@ -1,4 +1,4 @@
-import React, { useRef } from 'react';
+import React, { useRef, useState, useEffect } from 'react';
 import type { DeviceMode } from '../types';
 import { usePlaylist } from '../state/playlistContext';
 import {
@@ -33,6 +33,38 @@ export const Header: React.FC<HeaderProps> = ({
   const { playlist, syncState, clientCount, exportProject, importProject } = usePlaylist();
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
+  const [isHeaderVisible, setIsHeaderVisible] = useState(true);
+  const [showMobileMenu, setShowMobileMenu] = useState(false);
+  const lastScrollY = useRef(0);
+
+  // Auto-hide header when scrolling down on phone/mobile
+  useEffect(() => {
+    const handleScroll = () => {
+      const currentScrollY = window.scrollY;
+
+      // Always show at top of page
+      if (currentScrollY <= 30) {
+        setIsHeaderVisible(true);
+        lastScrollY.current = currentScrollY;
+        return;
+      }
+
+      // Scrolling down significantly -> hide header
+      if (currentScrollY > lastScrollY.current + 12 && currentScrollY > 60) {
+        setIsHeaderVisible(false);
+      }
+      // Scrolling up significantly -> reveal header
+      else if (currentScrollY < lastScrollY.current - 10) {
+        setIsHeaderVisible(true);
+      }
+
+      lastScrollY.current = currentScrollY;
+    };
+
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
+
   const handleImportFile = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -47,157 +79,282 @@ export const Header: React.FC<HeaderProps> = ({
     };
     reader.readAsText(file);
     e.target.value = '';
+    setShowMobileMenu(false);
   };
 
   return (
-    <header className="header-masthead">
-      <div className="header-container">
-        {/* Left: Brand & Couple Name */}
-        <div className="header-brand">
-          <div className="header-logo-icon">
-            <SparklesIcon className="icon-sparkle" />
+    <>
+      <header className={`header-masthead ${!isHeaderVisible ? 'header-masthead--hidden' : ''}`}>
+        <div className="header-container">
+          {/* Left: Brand & Couple Name */}
+          <div className="header-brand">
+            <div className="header-logo-icon">
+              <SparklesIcon className="icon-sparkle" />
+            </div>
+            <div className="header-brand-text">
+              <div className="header-sub">Wedding Playlist Studio · AjiNO</div>
+              <h1 className="header-title">
+                Duyên Ca <span className="header-divider">—</span>{' '}
+                <span className="header-couple">{playlist.meta.couple || 'Cô Dâu & Chú Rể'}</span>
+              </h1>
+            </div>
           </div>
-          <div>
-            <div className="header-sub">Wedding Playlist Studio · AjiNO</div>
-            <h1 className="header-title">
-              Duyên Ca <span className="header-divider">—</span>{' '}
-              <span className="header-couple">{playlist.meta.couple || 'Cô Dâu & Chú Rể'}</span>
-            </h1>
+
+          {/* Right: Actions & Switchers */}
+          <div className="header-actions">
+            {/* Device View Mode Switcher */}
+            <div className="device-switcher-pill" title="Chuyển đổi giao diện phù hợp với từng thiết bị">
+              <button
+                type="button"
+                className={`device-btn ${deviceMode === 'pc' ? 'active' : ''}`}
+                onClick={() => onSelectDevice('pc')}
+                title="Giao diện chuẩn Máy tính (PC / Laptop)"
+              >
+                <span>💻 PC</span>
+              </button>
+              <button
+                type="button"
+                className={`device-btn ${deviceMode === 'phone' ? 'active' : ''}`}
+                onClick={() => onSelectDevice('phone')}
+                title="Giao diện Điện thoại (Phone)"
+              >
+                <span>📱 Phone</span>
+              </button>
+              <button
+                type="button"
+                className={`device-btn ${deviceMode === 'ipad' ? 'active' : ''}`}
+                onClick={() => onSelectDevice('ipad')}
+                title="Giao diện Máy tính bảng (iPad / Tablet)"
+              >
+                <span>📱 iPad</span>
+              </button>
+              <button
+                type="button"
+                className={`device-btn device-btn--tv ${deviceMode === 'tv' ? 'active' : ''}`}
+                onClick={() => onSelectDevice('tv')}
+                title="Chế độ Sân khấu / Smart TV / Màn hình LED lớn"
+              >
+                <span>📺 TV Sân Khấu</span>
+              </button>
+            </div>
+
+            {/* Sync status indicator */}
+            <div className={`sync-pill sync-pill--${syncState}`}>
+              {syncState === 'saving' ? (
+                <>
+                  <CloudSyncIcon className="sync-icon spin" />
+                  <span className="sync-label">Đang lưu...</span>
+                </>
+              ) : syncState === 'synced' || syncState === 'saved' ? (
+                <>
+                  <CloudCheckIcon className="sync-icon" />
+                  <span className="sync-label">Đồng bộ tự động</span>
+                </>
+              ) : (
+                <>
+                  <span className="offline-dot" />
+                  <span className="sync-label">Ngoại tuyến</span>
+                </>
+              )}
+
+              {clientCount > 1 && (
+                <span className="device-count-badge" title="Số thiết bị đang mở cùng lúc">
+                  {clientCount} thiết bị
+                </span>
+              )}
+            </div>
+
+            {/* Desktop Action Buttons (Hidden on phone to save screen space) */}
+            <div className="header-desktop-actions">
+              <button
+                type="button"
+                className="action-btn action-btn--accent"
+                onClick={onOpenQR}
+                title="Kết nối điện thoại thông minh qua mã QR"
+              >
+                <QrCodeIcon />
+                <span className="btn-text">Điện thoại</span>
+              </button>
+
+              <button
+                type="button"
+                className="action-btn"
+                onClick={onOpenDrive}
+                title="Nhập nhạc từ Google Drive"
+              >
+                <GoogleDriveIcon />
+                <span className="btn-text">Google Drive</span>
+              </button>
+
+              <button
+                type="button"
+                className="action-btn"
+                onClick={onOpenPrint}
+                title="In kịch bản âm thanh tiệc cưới (Cue Sheet) cho MC / DJ"
+              >
+                <PrinterIcon />
+                <span className="btn-text">In kịch bản</span>
+              </button>
+
+              <button
+                type="button"
+                className="action-btn"
+                onClick={exportProject}
+                title="Sao lưu dự án cưới ra tệp .duyenca"
+              >
+                <DownloadIcon />
+                <span className="btn-text">Sao lưu</span>
+              </button>
+
+              <button
+                type="button"
+                className="action-btn"
+                onClick={() => fileInputRef.current?.click()}
+                title="Nạp dự án đã lưu từ tệp .duyenca"
+              >
+                <UploadIcon />
+                <span className="btn-text">Khôi phục</span>
+              </button>
+
+              <button
+                type="button"
+                className="action-btn action-btn--icon-only"
+                onClick={onOpenConfig}
+                title="Cài đặt thông tin tiệc cưới"
+              >
+                <SettingsIcon />
+              </button>
+            </div>
+
+            {/* Mobile Hamburger / Menu Toggle Button */}
+            <button
+              type="button"
+              className="mobile-menu-toggle-btn"
+              onClick={() => setShowMobileMenu(!showMobileMenu)}
+              title="Mở menu tính năng nhanh"
+            >
+              <span>{showMobileMenu ? '✕' : '☰'}</span>
+            </button>
           </div>
         </div>
 
-        {/* Right: Sync Status & Action Bar */}
-        <div className="header-actions">
-          {/* Device View Mode Switcher */}
-          <div className="device-switcher-pill" title="Chuyển đổi giao diện phù hợp với từng thiết bị">
-            <button
-              type="button"
-              className={`device-btn ${deviceMode === 'pc' ? 'active' : ''}`}
-              onClick={() => onSelectDevice('pc')}
-              title="Giao diện chuẩn Máy tính (PC / Laptop)"
-            >
-              <span>💻 PC</span>
-            </button>
-            <button
-              type="button"
-              className={`device-btn ${deviceMode === 'phone' ? 'active' : ''}`}
-              onClick={() => onSelectDevice('phone')}
-              title="Giao diện Điện thoại (Phone)"
-            >
-              <span>📱 Phone</span>
-            </button>
-            <button
-              type="button"
-              className={`device-btn ${deviceMode === 'ipad' ? 'active' : ''}`}
-              onClick={() => onSelectDevice('ipad')}
-              title="Giao diện Máy tính bảng (iPad / Tablet)"
-            >
-              <span>📱 iPad</span>
-            </button>
-            <button
-              type="button"
-              className={`device-btn device-btn--tv ${deviceMode === 'tv' ? 'active' : ''}`}
-              onClick={() => onSelectDevice('tv')}
-              title="Chế độ Sân khấu / Smart TV / Màn hình LED lớn"
-            >
-              <span>📺 TV Sân Khấu</span>
-            </button>
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept=".duyenca,.json"
+          style={{ display: 'none' }}
+          onChange={handleImportFile}
+        />
+      </header>
+
+      {/* Mobile Drawer Menu Modal */}
+      {showMobileMenu && (
+        <div className="mobile-menu-backdrop" onClick={() => setShowMobileMenu(false)}>
+          <div className="mobile-menu-sheet" onClick={(e) => e.stopPropagation()}>
+            <div className="mobile-menu-header">
+              <span className="mobile-menu-title">💐 Tùy Chọn Studio Cưới</span>
+              <button
+                type="button"
+                className="mobile-menu-close"
+                onClick={() => setShowMobileMenu(false)}
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="mobile-menu-list">
+              <button
+                type="button"
+                className="mobile-menu-item"
+                onClick={() => {
+                  setShowMobileMenu(false);
+                  onOpenConfig();
+                }}
+              >
+                <SettingsIcon className="w-5 h-5 text-amber-600" />
+                <div className="mobile-menu-item-text">
+                  <span className="item-title">Cài đặt thông tin tiệc cưới</span>
+                  <span className="item-desc">Tên cô dâu chú rể, ngày cưới, sảnh tiệc, giao diện</span>
+                </div>
+              </button>
+
+              <button
+                type="button"
+                className="mobile-menu-item"
+                onClick={() => {
+                  setShowMobileMenu(false);
+                  onOpenQR();
+                }}
+              >
+                <QrCodeIcon className="w-5 h-5 text-purple-600" />
+                <div className="mobile-menu-item-text">
+                  <span className="item-title">Mã QR kết nối điện thoại</span>
+                  <span className="item-desc">Quét mã để mở trên thiết bị khác tức thì</span>
+                </div>
+              </button>
+
+              <button
+                type="button"
+                className="mobile-menu-item"
+                onClick={() => {
+                  setShowMobileMenu(false);
+                  onOpenDrive();
+                }}
+              >
+                <GoogleDriveIcon className="w-5 h-5 text-emerald-600" />
+                <div className="mobile-menu-item-text">
+                  <span className="item-title">Nhập nhạc từ Google Drive</span>
+                  <span className="item-desc">Đồng bộ file nhạc từ kho lưu trữ đám mây</span>
+                </div>
+              </button>
+
+              <button
+                type="button"
+                className="mobile-menu-item"
+                onClick={() => {
+                  setShowMobileMenu(false);
+                  onOpenPrint();
+                }}
+              >
+                <PrinterIcon className="w-5 h-5 text-blue-600" />
+                <div className="mobile-menu-item-text">
+                  <span className="item-title">In Kịch Bản Âm Thanh (Cue Sheet)</span>
+                  <span className="item-desc">Bản in chuẩn cho MC, DJ và quản lý tiệc cưới</span>
+                </div>
+              </button>
+
+              <button
+                type="button"
+                className="mobile-menu-item"
+                onClick={() => {
+                  setShowMobileMenu(false);
+                  exportProject();
+                }}
+              >
+                <DownloadIcon className="w-5 h-5 text-indigo-600" />
+                <div className="mobile-menu-item-text">
+                  <span className="item-title">Sao lưu dự án (.duyenca)</span>
+                  <span className="item-desc">Tải tệp sao lưu về máy để giữ an toàn 100%</span>
+                </div>
+              </button>
+
+              <button
+                type="button"
+                className="mobile-menu-item"
+                onClick={() => {
+                  fileInputRef.current?.click();
+                }}
+              >
+                <UploadIcon className="w-5 h-5 text-teal-600" />
+                <div className="mobile-menu-item-text">
+                  <span className="item-title">Khôi phục dự án đã lưu</span>
+                  <span className="item-desc">Nạp lại danh sách từ tệp .duyenca</span>
+                </div>
+              </button>
+            </div>
           </div>
-
-          {/* Sync status indicator */}
-          <div className={`sync-pill sync-pill--${syncState}`}>
-            {syncState === 'saving' ? (
-              <>
-                <CloudSyncIcon className="sync-icon spin" />
-                <span className="sync-label">Đang lưu...</span>
-              </>
-            ) : syncState === 'synced' || syncState === 'saved' ? (
-              <>
-                <CloudCheckIcon className="sync-icon" />
-                <span className="sync-label">Đồng bộ tự động</span>
-              </>
-            ) : (
-              <>
-                <span className="offline-dot" />
-                <span className="sync-label">Ngoại tuyến</span>
-              </>
-            )}
-
-            {clientCount > 1 && (
-              <span className="device-count-badge" title="Số thiết bị đang mở cùng lúc">
-                {clientCount} thiết bị
-              </span>
-            )}
-          </div>
-
-          {/* Quick buttons */}
-          <button
-            type="button"
-            className="action-btn action-btn--accent"
-            onClick={onOpenQR}
-            title="Kết nối điện thoại thông minh qua mã QR"
-          >
-            <QrCodeIcon />
-            <span className="btn-text">Điện thoại</span>
-          </button>
-
-          <button
-            type="button"
-            className="action-btn"
-            onClick={onOpenDrive}
-            title="Nhập nhạc từ Google Drive"
-          >
-            <GoogleDriveIcon />
-            <span className="btn-text">Google Drive</span>
-          </button>
-
-          <button
-            type="button"
-            className="action-btn"
-            onClick={onOpenPrint}
-            title="In kịch bản âm thanh tiệc cưới (Cue Sheet) cho MC / DJ"
-          >
-            <PrinterIcon />
-            <span className="btn-text">In kịch bản</span>
-          </button>
-
-          <button
-            type="button"
-            className="action-btn"
-            onClick={exportProject}
-            title="Sao lưu dự án cưới ra tệp .duyenca"
-          >
-            <DownloadIcon />
-            <span className="btn-text">Sao lưu</span>
-          </button>
-
-          <button
-            type="button"
-            className="action-btn"
-            onClick={() => fileInputRef.current?.click()}
-            title="Nạp dự án đã lưu từ tệp .duyenca"
-          >
-            <UploadIcon />
-            <span className="btn-text">Khôi phục</span>
-          </button>
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept=".duyenca,.json"
-            style={{ display: 'none' }}
-            onChange={handleImportFile}
-          />
-
-          <button
-            type="button"
-            className="action-btn action-btn--icon-only"
-            onClick={onOpenConfig}
-            title="Cài đặt thông tin tiệc cưới"
-          >
-            <SettingsIcon />
-          </button>
         </div>
-      </div>
-    </header>
+      )}
+    </>
   );
 };

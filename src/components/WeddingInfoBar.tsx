@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { usePlaylist } from '../state/playlistContext';
 import type { AppTheme, WeddingSide } from '../types';
 import {
@@ -6,7 +6,6 @@ import {
   MapPinIcon,
   ClockIcon,
   EditIcon,
-  SparklesIcon,
 } from './common/Icons';
 
 interface WeddingInfoBarProps {
@@ -30,7 +29,8 @@ export const WeddingInfoBar: React.FC<WeddingInfoBarProps> = ({
   onOpenAddTrack,
 }) => {
   const { playlist, setTheme } = usePlaylist();
-  const { meta, sections, tracks, preferences } = playlist;
+  const { meta, tracks, preferences } = playlist;
+  const [isMobileExpanded, setIsMobileExpanded] = useState(false);
 
   const groomTracksCount = tracks.filter((t) => t.side === 'groom' || t.side === 'both').length;
   const brideTracksCount = tracks.filter((t) => t.side === 'bride' || t.side === 'both').length;
@@ -38,7 +38,47 @@ export const WeddingInfoBar: React.FC<WeddingInfoBarProps> = ({
 
   return (
     <section className="wedding-masthead-card">
-      <div className="wedding-masthead-inner">
+      {/* Slim Mobile Bar (Prominent on Phone, Compact) */}
+      <div className="mobile-masthead-bar">
+        <div className="mobile-masthead-title-row">
+          <div className="mobile-couple-names">
+            <span className="couple-badge couple-badge--groom">🤵 {meta.groomName || 'Nhà Trai'}</span>
+            <span className="couple-heart">💍</span>
+            <span className="couple-badge couple-badge--bride">👰 {meta.brideName || 'Nhà Gái'}</span>
+          </div>
+          <button
+            type="button"
+            className="mobile-collapse-toggle-btn"
+            onClick={() => setIsMobileExpanded(!isMobileExpanded)}
+            title={isMobileExpanded ? 'Thu gọn chi tiết' : 'Xem thông tin chi tiết tiệc cưới'}
+          >
+            <span>{isMobileExpanded ? '▴ Thu gọn' : '▾ Chi tiết'}</span>
+          </button>
+        </div>
+
+        <div className="mobile-quick-stats-row">
+          <span className="mobile-stat-chip">🎵 {tracks.length} bài ({formatDuration(totalSeconds)})</span>
+          <div className="mobile-add-btns">
+            <button
+              type="button"
+              className="mobile-add-btn mobile-add-btn--groom"
+              onClick={() => onOpenAddTrack(undefined, 'groom')}
+            >
+              +🤵 Trai
+            </button>
+            <button
+              type="button"
+              className="mobile-add-btn mobile-add-btn--bride"
+              onClick={() => onOpenAddTrack(undefined, 'bride')}
+            >
+              +👰 Gái
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* Main Wedding Info (Always visible on PC/iPad, Collapsible on Phone) */}
+      <div className={`wedding-masthead-inner ${!isMobileExpanded ? 'wedding-masthead-inner--mobile-collapsed' : ''}`}>
         {/* Main Wedding Info */}
         <div className="wedding-info-left">
           <div className="wedding-couple-row">

@@ -3306,3 +3306,832 @@
 
 
 
+
+
+/* ==========================================================================
+   MOBILE PHONE OPTIMIZATION & SMART AUTO-HIDE SCROLL STYLES
+   ========================================================================== */
+
+/* 1. Smart Auto-Hiding Masthead Header on Scroll Down */
+.header-masthead {
+  transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.25s ease !important;
+}
+
+.header-masthead--hidden {
+  transform: translateY(-100%);
+  box-shadow: none !important;
+}
+
+/* 2. Mobile Hamburger Toggle Button */
+.mobile-menu-toggle-btn {
+  display: none;
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  border: 1px solid var(--line);
+  background: var(--surface);
+  color: var(--ink);
+  font-size: 1.25rem;
+  font-weight: 700;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.mobile-menu-toggle-btn:hover {
+  background: var(--paper-2);
+  border-color: var(--gold);
+  color: var(--wine);
+}
+
+/* 3. Mobile Navigation Sheet Drawer */
+.mobile-menu-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 999;
+  background: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(4px);
+  display: flex;
+  justify-content: flex-end;
+  animation: fadeInMenu 0.2s ease-out;
+}
+
+@keyframes fadeInMenu {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.mobile-menu-sheet {
+  width: 85%;
+  max-width: 320px;
+  height: 100%;
+  background: var(--card);
+  box-shadow: -6px 0 24px rgba(0, 0, 0, 0.25);
+  display: flex;
+  flex-direction: column;
+  padding: 1.25rem;
+  animation: slideInRightMenu 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  overflow-y: auto;
+}
+
+@keyframes slideInRightMenu {
+  from { transform: translateX(100%); }
+  to { transform: translateX(0); }
+}
+
+.mobile-menu-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-bottom: 0.85rem;
+  border-bottom: 1px solid var(--line);
+}
+
+.mobile-menu-title {
+  font-size: 1.05rem;
+  font-family: var(--font-display);
+  font-weight: 700;
+  color: var(--wine);
+}
+
+.mobile-menu-close {
+  background: var(--paper-2);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  font-size: 1.1rem;
+  line-height: 1;
+  cursor: pointer;
+  color: var(--ink-2);
+  padding: 0.35rem 0.6rem;
+}
+
+.mobile-menu-body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+  padding: 1rem 0;
+  flex: 1;
+}
+
+.mobile-menu-item {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.85rem 1rem;
+  border-radius: 12px;
+  border: 1px solid var(--line-soft);
+  background: var(--surface);
+  color: var(--ink);
+  font-size: 0.92rem;
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.mobile-menu-item:hover,
+.mobile-menu-item:active {
+  background: var(--paper-2);
+  border-color: var(--gold);
+}
+
+.mobile-menu-item--accent {
+  background: linear-gradient(135deg, rgba(217, 119, 6, 0.12), rgba(116, 38, 58, 0.08));
+  border-color: rgba(217, 119, 6, 0.35);
+  color: var(--wine);
+}
+
+.mobile-menu-device-section {
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--line);
+}
+
+.mobile-menu-section-label {
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--ink-3);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  margin-bottom: 0.65rem;
+  display: block;
+}
+
+.mobile-device-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.5rem;
+}
+
+.mobile-device-chip {
+  padding: 0.6rem 0.5rem;
+  border-radius: 10px;
+  border: 1px solid var(--line);
+  background: var(--surface);
+  font-size: 0.82rem;
+  font-weight: 600;
+  cursor: pointer;
+  text-align: center;
+  transition: all 0.2s ease;
+}
+
+.mobile-device-chip.active {
+  background: var(--wine);
+  color: #fff;
+  border-color: var(--wine);
+}
+
+.mobile-menu-footer {
+  padding-top: 0.85rem;
+  border-top: 1px solid var(--line);
+}
+
+.mobile-menu-tip {
+  font-size: 0.76rem;
+  color: var(--ink-3);
+  line-height: 1.4;
+  margin: 0;
+  text-align: center;
+}
+
+/* 4. Slim Mobile Masthead Bar for Wedding Info */
+.mobile-masthead-bar {
+  display: none;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 0.85rem 1rem;
+  background: var(--card);
+  border-radius: 14px;
+  border: 1px solid var(--line);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+}
+
+.mobile-masthead-title-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.mobile-couple-names {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  flex-wrap: wrap;
+}
+
+.couple-badge {
+  font-size: 0.82rem;
+  font-weight: 700;
+  padding: 0.2rem 0.55rem;
+  border-radius: 8px;
+}
+
+.couple-badge--groom {
+  background: #dbeafe;
+  color: #1e40af;
+  border: 1px solid rgba(30, 64, 175, 0.2);
+}
+
+.couple-badge--bride {
+  background: #fce7f3;
+  color: #be185d;
+  border: 1px solid rgba(190, 24, 93, 0.2);
+}
+
+.couple-heart {
+  font-size: 0.9rem;
+}
+
+.mobile-collapse-toggle-btn {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 0.3rem 0.65rem;
+  font-size: 0.76rem;
+  font-weight: 600;
+  color: var(--wine);
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.mobile-quick-stats-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.mobile-stat-chip {
+  font-size: 0.78rem;
+  font-family: var(--font-mono);
+  color: var(--ink-2);
+  font-weight: 600;
+}
+
+.mobile-add-btns {
+  display: flex;
+  gap: 0.4rem;
+}
+
+.mobile-add-btn {
+  padding: 0.3rem 0.65rem;
+  border-radius: 8px;
+  font-size: 0.76rem;
+  font-weight: 700;
+  border: none;
+  color: #fff;
+  cursor: pointer;
+  transition: opacity 0.2s;
+}
+
+.mobile-add-btn:active {
+  opacity: 0.85;
+}
+
+.mobile-add-btn--groom {
+  background: linear-gradient(135deg, #1e40af, #2563eb);
+}
+
+.mobile-add-btn--bride {
+  background: linear-gradient(135deg, #be185d, #db2777);
+}
+
+/* Collapsible state for inner wedding info card */
+.wedding-masthead-inner {
+  transition: max-height 0.3s ease, opacity 0.25s ease;
+}
+
+/* 5. Mobile Slim Mini-Player Bar (56px) */
+.mobile-mini-console {
+  display: none;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.4rem 0.85rem;
+  width: 100%;
+  height: 56px;
+  background: var(--card);
+}
+
+.mini-track-meta {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  min-width: 0;
+  flex: 1;
+  cursor: pointer;
+}
+
+.mini-thumb-img {
+  width: 42px;
+  height: 42px;
+  border-radius: 8px;
+  object-fit: cover;
+  flex-shrink: 0;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
+}
+
+.mini-text-col {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  gap: 0.15rem;
+}
+
+.mini-title-row {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  min-width: 0;
+}
+
+.mini-title {
+  font-size: 0.88rem;
+  font-weight: 700;
+  color: var(--ink);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.mini-side-tag {
+  font-size: 0.65rem;
+  font-weight: 700;
+  padding: 0.1rem 0.35rem;
+  border-radius: 4px;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.mini-side-tag--groom { background: #dbeafe; color: #1e40af; }
+.mini-side-tag--bride { background: #fce7f3; color: #be185d; }
+.mini-side-tag--both { background: #fef3c7; color: #92400e; }
+
+.mini-artist {
+  font-size: 0.75rem;
+  color: var(--ink-3);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.mini-controls-col {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  flex-shrink: 0;
+}
+
+.mini-btn-play {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--gold), var(--wine));
+  color: #fff;
+  border: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  box-shadow: 0 2px 8px rgba(116, 38, 58, 0.3);
+  transition: transform 0.15s ease;
+}
+
+.mini-btn-play:active {
+  transform: scale(0.92);
+}
+
+.mini-btn-next,
+.mini-btn-expand {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  color: var(--ink-2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  font-size: 0.85rem;
+  transition: background 0.15s ease;
+}
+
+.mini-btn-next:active,
+.mini-btn-expand:active {
+  background: var(--paper-2);
+}
+
+/* 6. Expandable Full-Screen Mobile Player Sheet Drawer */
+.mobile-player-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  background: rgba(0, 0, 0, 0.65);
+  backdrop-filter: blur(8px);
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  animation: fadeIn 0.25s ease-out;
+}
+
+.mobile-player-sheet {
+  background: var(--card);
+  border-radius: 24px 24px 0 0;
+  border-top: 1px solid var(--line);
+  padding: 1rem 1.25rem 2rem;
+  box-shadow: 0 -8px 30px rgba(0, 0, 0, 0.3);
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  max-height: 90vh;
+  overflow-y: auto;
+  animation: slideUpSheet 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes slideUpSheet {
+  from { transform: translateY(100%); }
+  to { transform: translateY(0); }
+}
+
+.mobile-sheet-drag-handle {
+  width: 44px;
+  height: 5px;
+  background: var(--line);
+  border-radius: 9999px;
+  align-self: center;
+  margin-bottom: 0.25rem;
+}
+
+.mobile-sheet-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.mobile-sheet-close {
+  background: var(--paper-2);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--ink-2);
+  padding: 0.35rem 0.75rem;
+  cursor: pointer;
+}
+
+.mobile-sheet-cover-box {
+  width: 100%;
+  max-width: 240px;
+  height: 240px;
+  margin: 0 auto;
+  border-radius: 18px;
+  overflow: hidden;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.18);
+  background: var(--surface);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.mobile-sheet-cover-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.mobile-sheet-placeholder {
+  font-size: 4rem;
+  color: var(--gold);
+}
+
+.mobile-sheet-meta {
+  text-align: center;
+}
+
+.mobile-sheet-title {
+  font-size: 1.2rem;
+  font-weight: 700;
+  color: var(--ink);
+  margin: 0;
+}
+
+.mobile-sheet-artist {
+  font-size: 0.9rem;
+  color: var(--ink-3);
+  margin-top: 0.25rem;
+}
+
+.mobile-sheet-cue {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  background: var(--wine-soft);
+  border: 1px solid rgba(116, 38, 58, 0.2);
+  padding: 0.45rem 0.85rem;
+  border-radius: 8px;
+}
+
+.mobile-sheet-scrub {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.mobile-sheet-time-row {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.78rem;
+  font-family: var(--font-mono);
+  color: var(--ink-3);
+}
+
+.mobile-sheet-slider {
+  width: 100%;
+  height: 6px;
+  accent-color: var(--wine);
+  cursor: pointer;
+}
+
+.mobile-sheet-controls {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 1.25rem;
+  margin-top: 0.25rem;
+}
+
+.sheet-btn {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  color: var(--ink);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.sheet-btn--stop {
+  color: var(--ink-3);
+}
+
+.sheet-btn-play {
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--gold), var(--wine));
+  color: #fff;
+  border: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  box-shadow: 0 4px 16px rgba(116, 38, 58, 0.35);
+  transition: transform 0.15s ease;
+}
+
+.sheet-btn-play:active {
+  transform: scale(0.94);
+}
+
+.mobile-sheet-footer-controls {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+  padding-top: 0.85rem;
+  border-top: 1px solid var(--line-soft);
+}
+
+.mobile-sheet-modes {
+  display: flex;
+  gap: 0.35rem;
+}
+
+.sheet-mode-pill {
+  padding: 0.35rem 0.65rem;
+  border-radius: 6px;
+  border: 1px solid var(--line);
+  background: var(--surface);
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--ink-2);
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  cursor: pointer;
+}
+
+.sheet-mode-pill.active {
+  background: var(--wine);
+  color: #fff;
+  border-color: var(--wine);
+}
+
+.sheet-fade-btn {
+  padding: 0.35rem 0.75rem;
+  border-radius: 6px;
+  border: 1px solid var(--line);
+  background: var(--paper-2);
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--wine);
+  cursor: pointer;
+}
+
+/* ==========================================================================
+   RESPONSIVE ENFORCEMENT FOR PHONE MODE & NARROW SCREENS (<= 768px)
+   ========================================================================== */
+@media (max-width: 768px) {
+  /* Reduce layout padding to give maximum room */
+  .app-layout {
+    padding-bottom: 74px !important; /* Space for 56px mini player */
+  }
+
+  .main-viewport {
+    padding: 0.75rem 0.65rem 2.5rem !important;
+    gap: 0.85rem !important;
+  }
+
+  /* Compact Header on Phone */
+  .header-container {
+    padding: 0.65rem 0.85rem !important;
+    gap: 0.5rem !important;
+  }
+
+  .header-logo-icon {
+    width: 32px !important;
+    height: 32px !important;
+    border-radius: 8px !important;
+  }
+
+  .header-title {
+    font-size: 1.15rem !important;
+  }
+
+  .header-sub {
+    font-size: 0.68rem !important;
+  }
+
+  .device-switcher-pill {
+    display: none !important; /* Managed via hamburger menu on phone */
+  }
+
+  .header-desktop-actions {
+    display: none !important;
+  }
+
+  .mobile-menu-toggle-btn {
+    display: flex !important;
+  }
+
+  /* Collapsible Wedding Info Bar on Phone */
+  .mobile-masthead-bar {
+    display: flex !important;
+  }
+
+  .wedding-masthead-inner--mobile-collapsed {
+    display: none !important;
+  }
+
+  /* Sticky Tab Bar for Thumb Switching */
+  .dual-view-toolbar {
+    position: sticky !important;
+    top: 0 !important;
+    z-index: 35 !important;
+    background: var(--paper) !important;
+    padding: 0.5rem 0 !important;
+    backdrop-filter: blur(12px) !important;
+    margin-bottom: 0.5rem !important;
+  }
+
+  .view-mode-tabs {
+    width: 100% !important;
+    display: flex !important;
+  }
+
+  .view-mode-btn {
+    flex: 1 1 0 !important;
+    justify-content: center !important;
+    padding: 0.45rem 0.35rem !important;
+    font-size: 0.78rem !important;
+  }
+
+  .dual-search-box {
+    max-width: 100% !important;
+    flex: 1 1 100% !important;
+  }
+
+  /* Single Column Full Width for Songs */
+  .dual-grid-layout {
+    grid-template-columns: 1fr !important;
+    gap: 1rem !important;
+  }
+
+  .side-column {
+    padding: 0.85rem !important;
+  }
+
+  /* Track Item Card Compact on Phone */
+  .track-item-card {
+    padding: 0.55rem 0.65rem !important;
+    gap: 0.5rem !important;
+    flex-wrap: nowrap !important;
+  }
+
+  .track-left {
+    flex: 1 1 auto !important;
+    min-width: 0 !important;
+    gap: 0.5rem !important;
+  }
+
+  .track-play-btn {
+    width: 32px !important;
+    height: 32px !important;
+  }
+
+  .track-title {
+    font-size: 0.86rem !important;
+    white-space: nowrap !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+  }
+
+  .track-artist {
+    font-size: 0.74rem !important;
+    white-space: nowrap !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+  }
+
+  .track-center {
+    display: none !important; /* Hide badges on phone to save width */
+  }
+
+  .track-actions {
+    gap: 0.25rem !important;
+  }
+
+  .track-action-btn {
+    padding: 0.25rem !important;
+  }
+
+  /* Studio Console: Switch to Mini Bar */
+  .desktop-console-content {
+    display: none !important;
+  }
+
+  .mobile-mini-console {
+    display: flex !important;
+  }
+}
+
+/* Explicit deviceMode === 'phone' override regardless of screen width */
+.app-layout--phone {
+  padding-bottom: 74px !important;
+}
+
+.app-layout--phone .header-desktop-actions {
+  display: none !important;
+}
+
+.app-layout--phone .mobile-menu-toggle-btn {
+  display: flex !important;
+}
+
+.app-layout--phone .mobile-masthead-bar {
+  display: flex !important;
+}
+
+.app-layout--phone .wedding-masthead-inner--mobile-collapsed {
+  display: none !important;
+}
+
+.app-layout--phone .desktop-console-content {
+  display: none !important;
+}
+
+.app-layout--phone .mobile-mini-console {
+  display: flex !important;
+}
+
+.app-layout--phone .dual-grid-layout--split {
+  grid-template-columns: 1fr !important;
+}
+
+.app-layout--phone .dual-view-toolbar {
+  position: sticky !important;
+  top: 0 !important;
+  z-index: 35 !important;
+  background: var(--paper) !important;
+  padding: 0.5rem 0 !important;
+  backdrop-filter: blur(12px) !important;
+}
