@@ -98,7 +98,7 @@ export const EditTrackModal: React.FC<EditTrackModalProps> = ({
       const playableUrl = track.audioId
         ? `/api/audio/${track.audioId}`
         : dId
-        ? `/api/gdrive/stream?id=${dId}`
+        ? `https://drive.usercontent.google.com/download?id=${dId}&export=download&confirm=t`
         : track.url;
 
       const audio = new Audio(playableUrl);

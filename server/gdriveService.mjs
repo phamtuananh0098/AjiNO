@@ -339,81 +339,20 @@ export async function downloadFromDrive(fileId, customName) {
  * Allows browser <audio> tag to play, seek, and trim Google Drive audio seamlessly
  */
 export async function streamFromDrive(req, res, fileId) {
-  try {
-    const upstreamHeaders = {};
-    if (req.headers.range) {
-      upstreamHeaders.range = req.headers.range;
-    }
-
-    const upstream = await fetchGoogleDriveAudio(fileId, upstreamHeaders);
-
-    if (!upstream.ok && upstream.status !== 206) {
-      res.statusCode = upstream.status || 500;
-      res.setHeader('Content-Type', 'application/json; charset=utf-8');
-      res.end(
-        JSON.stringify({
-          ok: false,
-          error: `Không thể mở luồng phát từ Google Drive (Mã lỗi ${upstream.status}). Vui lòng kiểm tra quyền chia sẻ tệp.`,
-        })
-      );
-      return;
-    }
-
-    const contentType = upstream.headers.get('content-type') || 'audio/mpeg';
-    if (contentType.includes('text/html')) {
-      res.statusCode = 403;
-      res.setHeader('Content-Type', 'application/json; charset=utf-8');
-      res.end(
-        JSON.stringify({
-          ok: false,
-          error: 'Tệp Google Drive cần được chia sẻ ở chế độ "Bất kỳ ai có đường liên kết đều có thể xem".',
-        })
-      );
-      return;
-    }
-
-    // Set streaming audio headers
-    res.statusCode = upstream.status; // 200 or 206 Partial Content
-    res.setHeader('Content-Type', contentType.includes('audio') ? contentType : 'audio/mpeg');
-    res.setHeader('Accept-Ranges', 'bytes');
-    res.setHeader('Access-Control-Allow-Origin', '*');
-    res.setHeader('Access-Control-Allow-Headers', '*');
-    res.setHeader('Cache-Control', 'public, max-age=86400');
-
-    const contentRange = upstream.headers.get('content-range');
-    if (contentRange) {
-      res.setHeader('Content-Range', contentRange);
-    }
-
-    const contentLength = upstream.headers.get('content-length');
-    if (contentLength) {
-      res.setHeader('Content-Length', contentLength);
-    }
-
-    // If HEAD request, close headers immediately
-    if (req.method === 'HEAD') {
-      res.end();
-      return;
-    }
-
-    // Stream audio body using Node.js Readable stream
-    if (upstream.body) {
-      const nodeStream = Readable.fromWeb(upstream.body);
-      nodeStream.on('error', () => {
-        if (!res.writableEnded) res.end();
-      });
-      req.on('close', () => {
-        nodeStream.destroy();
-      });
-      nodeStream.pipe(res);
-    } else {
-      res.end();
-    }
-  } catch (err) {
-    if (!res.headersSent) {
-      res.statusCode = 500;
-      res.setHeader('Content-Type', 'application/json; charset=utf-8');
-      res.end(JSON.stringify({ ok: false, error: err?.message || 'Lỗi phát nhạc từ Google Drive' }));
-    }
+  if (!fileId) {
+    res.statusCode = 400;
+    res.setHeader('Content-Type', 'application/json; charset=utf-8');
+    res.end(JSON.stringify({ ok: false, error: 'Thiếu fileId tệp Google Drive' }));
+    return;
   }
+
+  // Instant 307 redirect directly to Google Drive high-speed CDN endpoint
+  // Eliminates serverless timeouts, prevents 30s-60s proxy lag, and streams instantly
+  const directUrl = `https://drive.usercontent.google.com/download?id=${fileId}&export=download&confirm=t`;
+  res.statusCode = 307;
+  res.setHeader('Location', directUrl);
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Headers', '*');
+  res.setHeader('Cache-Control', 'public, max-age=86400');
+  res.end();
 }
