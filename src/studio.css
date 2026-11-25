@@ -643,25 +643,26 @@
 }
 
 /* --------------------------------------------------------------------------
-   Track Item Card
+   Track Item Card: Sleek, responsive, and clear on all devices
    -------------------------------------------------------------------------- */
 .tracks-container {
   display: flex;
   flex-direction: column;
   gap: 0.55rem;
+  width: 100%;
 }
 
 .track-item-card {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 1rem;
-  padding: 0.65rem 0.95rem;
+  flex-direction: column;
+  gap: 0.35rem;
+  padding: 0.6rem 0.85rem;
   background: var(--surface);
   border: 1px solid var(--line-soft);
   border-radius: 12px;
   transition: all 0.2s ease;
-  flex-wrap: wrap;
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .track-item-card:hover {
@@ -678,16 +679,19 @@
   box-shadow: 0 0 0 2px var(--gold);
 }
 
-.track-left {
+/* Row 1: Play button + Track info + Action buttons */
+.track-item-header-row {
   display: flex;
   align-items: center;
-  gap: 0.75rem;
-  flex: 1 1 300px;
+  justify-content: space-between;
+  gap: 0.65rem;
+  width: 100%;
+  min-width: 0;
 }
 
 .track-play-btn {
-  width: 34px;
-  height: 34px;
+  width: 36px;
+  height: 36px;
   border-radius: 50%;
   background: var(--paper-2);
   border: 1px solid var(--line);
@@ -709,39 +713,193 @@
 
 .track-order-num {
   font-family: var(--font-mono);
-  font-size: 0.78rem;
+  font-size: 0.8rem;
   color: var(--ink-3);
-  min-width: 18px;
+  min-width: 16px;
+  flex-shrink: 0;
+  text-align: center;
+}
+
+.track-thumb-cover {
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  object-fit: cover;
+  flex-shrink: 0;
+  border: 1px solid var(--line-soft);
 }
 
 .track-info {
   display: flex;
   flex-direction: column;
   gap: 0.15rem;
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
 }
 
 .track-title-row {
   display: flex;
-  align-items: baseline;
-  gap: 0.45rem;
+  align-items: center;
+  min-width: 0;
+  overflow: hidden;
 }
 
 .track-title {
-  font-weight: 600;
+  font-weight: 700;
   font-size: 0.92rem;
   color: var(--ink);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: block;
+}
+
+.track-sub-row {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.78rem;
+  color: var(--ink-3);
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
 }
 
 .track-artist {
-  font-size: 0.8rem;
-  color: var(--ink-3);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 140px;
+  color: var(--ink-2);
 }
 
-.track-cue-note {
+.track-dot-sep {
+  opacity: 0.5;
+  flex-shrink: 0;
+}
+
+.track-duration-pill {
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  color: var(--ink-2);
+  flex-shrink: 0;
+}
+
+.track-side-chip {
+  font-size: 0.65rem;
+  font-weight: 700;
+  padding: 0.1rem 0.35rem;
+  border-radius: 4px;
+  flex-shrink: 0;
+}
+
+.track-side-chip--groom {
+  background: #dbeafe;
+  color: #1e40af;
+}
+
+.track-side-chip--bride {
+  background: #fce7f3;
+  color: #be185d;
+}
+
+.track-side-chip--both {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+/* Action buttons */
+.track-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  flex-shrink: 0;
+}
+
+.icon-action-btn {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--ink-3);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+  flex-shrink: 0;
+}
+
+.icon-action-btn:hover {
+  background: var(--paper-2);
+  color: var(--ink);
+  border-color: var(--line-soft);
+}
+
+.icon-action-btn--fav {
+  color: #e91e63 !important;
+}
+
+.icon-action-btn--danger:hover {
+  color: #d32f2f !important;
+  background: rgba(211, 47, 47, 0.1);
+}
+
+.track-move-select {
+  padding: 0.25rem 0.45rem;
+  border-radius: 6px;
+  border: 1px solid var(--line);
+  background: var(--surface);
+  color: var(--ink-2);
+  font-size: 0.72rem;
+  max-width: 170px;
+}
+
+/* Cue banner */
+.track-cue-banner {
   display: inline-flex;
   align-items: center;
-  gap: 0.4rem;
-  margin-top: 0.15rem;
+  gap: 0.45rem;
+  padding: 0.2rem 0.55rem;
+  background: var(--wine-soft);
+  border-radius: 6px;
+  margin-top: 0.1rem;
+  align-self: flex-start;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
+.cue-badge {
+  font-size: 0.62rem;
+  font-family: var(--font-mono);
+  font-weight: 700;
+  padding: 0.1rem 0.35rem;
+  border-radius: 4px;
+  background: var(--wine);
+  color: #fff;
+  flex-shrink: 0;
+}
+
+.cue-text {
+  font-size: 0.76rem;
+  color: var(--wine-deep);
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Hide desktop-only controls on phones and mobile layouts */
+@media (max-width: 768px) {
+  .desktop-only-action {
+    display: none !important;
+  }
+}
+
+.app-layout--phone .desktop-only-action {
+  display: none !important;
 }
 
 .cue-badge {
@@ -4111,31 +4269,47 @@
   /* Track Item Card Compact on Phone */
   .track-item-card {
     padding: 0.5rem 0.6rem !important;
-    gap: 0.45rem !important;
-    flex-wrap: nowrap !important;
+    gap: 0.3rem !important;
     width: 100% !important;
     max-width: 100% !important;
     box-sizing: border-box !important;
     min-width: 0 !important;
   }
 
-  .track-left {
-    flex: 1 1 auto !important;
-    min-width: 0 !important;
+  .track-item-header-row {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: space-between !important;
     gap: 0.45rem !important;
-    overflow: hidden !important;
+    width: 100% !important;
+    min-width: 0 !important;
   }
 
   .track-play-btn {
-    width: 32px !important;
-    height: 32px !important;
+    width: 34px !important;
+    height: 34px !important;
+    flex-shrink: 0 !important;
+  }
+
+  .track-order-num {
+    min-width: 14px !important;
+    font-size: 0.76rem !important;
+    flex-shrink: 0 !important;
+  }
+
+  .track-thumb-cover {
+    width: 34px !important;
+    height: 34px !important;
     flex-shrink: 0 !important;
   }
 
   .track-info {
-    min-width: 0 !important;
     flex: 1 1 auto !important;
+    min-width: 0 !important;
     overflow: hidden !important;
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 0.1rem !important;
   }
 
   .track-title-row {
@@ -4146,10 +4320,23 @@
   }
 
   .track-title {
-    font-size: 0.86rem !important;
+    font-size: 0.88rem !important;
+    font-weight: 700 !important;
+    color: var(--ink) !important;
     white-space: nowrap !important;
     overflow: hidden !important;
     text-overflow: ellipsis !important;
+  }
+
+  .track-sub-row {
+    display: flex !important;
+    align-items: center !important;
+    gap: 0.3rem !important;
+    font-size: 0.74rem !important;
+    color: var(--ink-3) !important;
+    min-width: 0 !important;
+    overflow: hidden !important;
+    white-space: nowrap !important;
   }
 
   .track-artist {
@@ -4157,19 +4344,25 @@
     white-space: nowrap !important;
     overflow: hidden !important;
     text-overflow: ellipsis !important;
+    max-width: 110px !important;
   }
 
-  .track-center {
-    display: none !important; /* Hide badges on phone to eliminate clutter */
+  .desktop-only-action {
+    display: none !important;
   }
 
   .track-actions {
-    gap: 0.2rem !important;
+    display: flex !important;
+    align-items: center !important;
+    gap: 0.15rem !important;
     flex-shrink: 0 !important;
   }
 
-  .track-action-btn {
-    padding: 0.25rem !important;
+  .icon-action-btn {
+    width: 30px !important;
+    height: 30px !important;
+    padding: 0.2rem !important;
+    flex-shrink: 0 !important;
   }
 
   /* Studio Console: Switch to Mini Bar */
@@ -4294,9 +4487,46 @@
   width: 100% !important;
   max-width: 100% !important;
   box-sizing: border-box !important;
-  flex-wrap: nowrap !important;
 }
 
-.app-layout--phone .track-center {
+.app-layout--phone .track-item-header-row {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  gap: 0.45rem !important;
+  width: 100% !important;
+  min-width: 0 !important;
+}
+
+.app-layout--phone .track-info {
+  flex: 1 1 auto !important;
+  min-width: 0 !important;
+  overflow: hidden !important;
+}
+
+.app-layout--phone .track-title {
+  font-size: 0.88rem !important;
+  font-weight: 700 !important;
+  color: var(--ink) !important;
+  white-space: nowrap !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+}
+
+.app-layout--phone .desktop-only-action {
   display: none !important;
+}
+
+.app-layout--phone .track-actions {
+  display: flex !important;
+  align-items: center !important;
+  gap: 0.15rem !important;
+  flex-shrink: 0 !important;
+}
+
+.app-layout--phone .icon-action-btn {
+  width: 30px !important;
+  height: 30px !important;
+  padding: 0.2rem !important;
+  flex-shrink: 0 !important;
 }
