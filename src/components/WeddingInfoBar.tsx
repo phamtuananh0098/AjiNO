@@ -9,6 +9,7 @@ import {
 } from './common/Icons';
 
 interface WeddingInfoBarProps {
+  isPhone?: boolean;
   onOpenConfig: () => void;
   onOpenAddTrack: (sectionId?: string, defaultSide?: WeddingSide) => void;
 }
@@ -25,6 +26,7 @@ function formatDuration(totalSeconds: number): string {
 }
 
 export const WeddingInfoBar: React.FC<WeddingInfoBarProps> = ({
+  isPhone = false,
   onOpenConfig,
   onOpenAddTrack,
 }) => {

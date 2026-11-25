@@ -5,6 +5,7 @@ import { SectionCard } from './SectionCard';
 import { PlusIcon, SparklesIcon } from './common/Icons';
 
 interface DualSideViewProps {
+  isPhone?: boolean;
   onOpenAddSection: (defaultSide?: WeddingSide) => void;
   onEditSection: (section: Section) => void;
   onAddTrack: (sectionId: string, defaultSide?: WeddingSide) => void;
@@ -12,6 +13,7 @@ interface DualSideViewProps {
 }
 
 export const DualSideView: React.FC<DualSideViewProps> = ({
+  isPhone = false,
   onOpenAddSection,
   onEditSection,
   onAddTrack,
@@ -71,18 +73,8 @@ export const DualSideView: React.FC<DualSideViewProps> = ({
     <div className="dual-side-container">
       {/* View Switcher Bar & Search */}
       <div className="dual-view-toolbar">
-        {/* Switcher Buttons */}
+        {/* Switcher Buttons: Compact, equal-width, 0 overflow */}
         <div className="view-mode-tabs">
-          <button
-            type="button"
-            className={`view-mode-btn ${activeSideView === 'split' ? 'active' : ''}`}
-            onClick={() => setActiveSideView('split')}
-            title="Hiển thị song song 2 bên Nhà Trai và Nhà Gái"
-          >
-            <span className="tab-icon">👥</span>
-            <span>Song Song (50 / 50)</span>
-          </button>
-
           <button
             type="button"
             className={`view-mode-btn view-mode-btn--groom ${activeSideView === 'groom' ? 'active' : ''}`}
@@ -90,7 +82,7 @@ export const DualSideView: React.FC<DualSideViewProps> = ({
             title="Tập trung danh sách Nhà Trai"
           >
             <span className="tab-icon">🤵</span>
-            <span>Nhà Trai ({groomTracks.length})</span>
+            <span>{isPhone ? 'Trai' : 'Nhà Trai'} ({groomTracks.length})</span>
           </button>
 
           <button
@@ -100,7 +92,17 @@ export const DualSideView: React.FC<DualSideViewProps> = ({
             title="Tập trung danh sách Nhà Gái"
           >
             <span className="tab-icon">👰</span>
-            <span>Nhà Gái ({brideTracks.length})</span>
+            <span>{isPhone ? 'Gái' : 'Nhà Gái'} ({brideTracks.length})</span>
+          </button>
+
+          <button
+            type="button"
+            className={`view-mode-btn ${activeSideView === 'split' ? 'active' : ''}`}
+            onClick={() => setActiveSideView('split')}
+            title="Hiển thị cả 2 bên Nhà Trai & Nhà Gái"
+          >
+            <span className="tab-icon">💍</span>
+            <span>{isPhone ? 'Cả 2' : 'Song Song'} ({tracks.length})</span>
           </button>
         </div>
 

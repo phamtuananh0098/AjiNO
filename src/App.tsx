@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import type { Section, Track, WeddingSide, DeviceMode } from './types';
+import { useDeviceDetector } from './services/deviceDetector';
 import { ToastProvider } from './state/toastContext';
 import { PlaylistProvider, usePlaylist } from './state/playlistContext';
 import { PlayerProvider } from './state/playerContext';
@@ -19,20 +20,25 @@ import { PrintCueSheetModal } from './components/Modals/PrintCueSheetModal';
 
 function WeddingStudioApp() {
   const { playlist } = usePlaylist();
+  const detectedDevice = useDeviceDetector();
 
-  // Device view mode: 'pc' | 'phone' | 'ipad' | 'tv' | 'auto'
-  const [deviceMode, setDeviceModeState] = useState<DeviceMode>(() => {
+  // Device view mode setting: 'auto' | 'pc' | 'phone' | 'ipad' | 'tv'
+  const [deviceSetting, setDeviceSetting] = useState<DeviceMode>(() => {
     if (typeof window !== 'undefined') {
       const saved = localStorage.getItem('duyen_ca_device_mode') as DeviceMode;
-      if (saved) return saved;
-      if (window.innerWidth <= 768) return 'phone';
-      if (window.innerWidth <= 1024) return 'ipad';
+      if (saved && ['auto', 'pc', 'phone', 'ipad', 'tv'].includes(saved)) {
+        return saved;
+      }
     }
-    return 'pc';
+    return 'auto';
   });
 
+  // Effective device used for layout and behavior:
+  const effectiveDevice: 'pc' | 'phone' | 'ipad' | 'tv' =
+    deviceSetting === 'auto' ? detectedDevice : deviceSetting;
+
   const handleSelectDevice = (mode: DeviceMode) => {
-    setDeviceModeState(mode);
+    setDeviceSetting(mode);
     try {
       localStorage.setItem('duyen_ca_device_mode', mode);
     } catch {}
@@ -82,23 +88,24 @@ function WeddingStudioApp() {
   };
 
   // Fullscreen TV Stage View Mode
-  if (deviceMode === 'tv') {
+  if (effectiveDevice === 'tv') {
     return (
       <div className="app-layout app-layout--tv">
         <ToastContainer />
-        <TVStageView onExitTv={() => handleSelectDevice('pc')} />
+        <TVStageView onExitTv={() => handleSelectDevice('auto')} />
         <StudioConsole />
       </div>
     );
   }
 
   return (
-    <div className={`app-layout app-layout--${deviceMode}`}>
+    <div className={`app-layout app-layout--${effectiveDevice}`}>
       <ToastContainer />
 
       {/* Top Header */}
       <Header
-        deviceMode={deviceMode}
+        deviceMode={deviceSetting}
+        effectiveDevice={effectiveDevice}
         onSelectDevice={handleSelectDevice}
         onOpenConfig={() => setShowConfigModal(true)}
         onOpenQR={() => setShowQRModal(true)}
@@ -110,12 +117,14 @@ function WeddingStudioApp() {
       <main className="main-viewport">
         {/* Personalized Wedding Info & Controls */}
         <WeddingInfoBar
+          isPhone={effectiveDevice === 'phone'}
           onOpenConfig={() => setShowConfigModal(true)}
           onOpenAddTrack={handleOpenAddTrack}
         />
 
         {/* Dual Side View: NHÀ TRAI (Trái) & NHÀ GÁI (Phải) */}
         <DualSideView
+          isPhone={effectiveDevice === 'phone'}
           onOpenAddSection={handleOpenAddSection}
           onEditSection={handleOpenEditSection}
           onAddTrack={handleOpenAddTrack}

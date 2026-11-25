@@ -19,6 +19,7 @@ interface HeaderProps {
   onOpenPrint: () => void;
   onOpenDrive: () => void;
   deviceMode: DeviceMode;
+  effectiveDevice?: 'pc' | 'phone' | 'ipad' | 'tv';
   onSelectDevice: (mode: DeviceMode) => void;
 }
 
@@ -28,6 +29,7 @@ export const Header: React.FC<HeaderProps> = ({
   onOpenPrint,
   onOpenDrive,
   deviceMode,
+  effectiveDevice = 'pc',
   onSelectDevice,
 }) => {
   const { playlist, syncState, clientCount, exportProject, importProject } = usePlaylist();
@@ -104,6 +106,14 @@ export const Header: React.FC<HeaderProps> = ({
           <div className="header-actions">
             {/* Device View Mode Switcher */}
             <div className="device-switcher-pill" title="Chuyển đổi giao diện phù hợp với từng thiết bị">
+              <button
+                type="button"
+                className={`device-btn ${deviceMode === 'auto' ? 'active' : ''}`}
+                onClick={() => onSelectDevice('auto')}
+                title={`Tự động nhận diện thiết bị (Đang phát hiện: ${effectiveDevice === 'phone' ? '📱 Điện thoại' : effectiveDevice === 'ipad' ? '📱 iPad' : '💻 Máy tính'})`}
+              >
+                <span>⚡ Tự động {deviceMode === 'auto' && `(${effectiveDevice === 'phone' ? '📱' : effectiveDevice === 'ipad' ? '📱' : '💻'})`}</span>
+              </button>
               <button
                 type="button"
                 className={`device-btn ${deviceMode === 'pc' ? 'active' : ''}`}
@@ -351,6 +361,55 @@ export const Header: React.FC<HeaderProps> = ({
                   <span className="item-desc">Nạp lại danh sách từ tệp .duyenca</span>
                 </div>
               </button>
+
+              {/* Mobile Device Mode Switcher */}
+              <div className="mobile-menu-device-section">
+                <span className="mobile-menu-section-label">
+                  Thiết bị hiển thị (Đang phát hiện: {effectiveDevice === 'phone' ? '📱 Điện thoại' : effectiveDevice === 'ipad' ? '📱 iPad' : '💻 Máy tính'})
+                </span>
+                <div className="mobile-device-grid">
+                  <button
+                    type="button"
+                    className={`mobile-device-chip ${deviceMode === 'auto' ? 'active' : ''}`}
+                    onClick={() => {
+                      onSelectDevice('auto');
+                      setShowMobileMenu(false);
+                    }}
+                  >
+                    ⚡ Tự động ({effectiveDevice === 'phone' ? '📱' : effectiveDevice === 'ipad' ? '📱' : '💻'})
+                  </button>
+                  <button
+                    type="button"
+                    className={`mobile-device-chip ${deviceMode === 'phone' ? 'active' : ''}`}
+                    onClick={() => {
+                      onSelectDevice('phone');
+                      setShowMobileMenu(false);
+                    }}
+                  >
+                    📱 Điện thoại
+                  </button>
+                  <button
+                    type="button"
+                    className={`mobile-device-chip ${deviceMode === 'ipad' ? 'active' : ''}`}
+                    onClick={() => {
+                      onSelectDevice('ipad');
+                      setShowMobileMenu(false);
+                    }}
+                  >
+                    📱 iPad / Tablet
+                  </button>
+                  <button
+                    type="button"
+                    className={`mobile-device-chip ${deviceMode === 'pc' ? 'active' : ''}`}
+                    onClick={() => {
+                      onSelectDevice('pc');
+                      setShowMobileMenu(false);
+                    }}
+                  >
+                    💻 Máy tính
+                  </button>
+                </div>
+              </div>
             </div>
           </div>
         </div>

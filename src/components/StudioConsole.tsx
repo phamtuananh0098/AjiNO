@@ -342,8 +342,9 @@ export const StudioConsole: React.FC = () => {
           </div>
         </div>
 
-        {/* Embedded YouTube Audio Player */}
-        <div className={`console-yt-box ${activeEngine === 'youtube' && youtubeId ? 'console-yt-box--active' : ''}`}>
+        {/* Background Multi-Engine Audio Players (Always hidden off-screen, zero screen space) */}
+        <div className="console-hidden-engines" aria-hidden="true">
+          {/* YouTube Audio Player */}
           <iframe
             id="duyen-ca-console-yt-player"
             src={
@@ -357,27 +358,19 @@ export const StudioConsole: React.FC = () => {
             }
             allow="autoplay; encrypted-media"
             title="Studio YouTube Player"
-            className="console-yt-iframe"
+            className="engine-iframe"
           />
-        </div>
 
-        {/* Embedded Google Drive Audio Player */}
-        <div className={`console-gdrive-box ${activeEngine === 'gdrive' && gdriveId ? 'console-gdrive-box--active' : ''}`}>
-          <div className="console-gdrive-header">
-            <span className="link-platform-tag">GOOGLE DRIVE AUDIO</span>
-            <span className="console-gdrive-label">▶ Đang phát âm thanh trực tiếp</span>
-          </div>
+          {/* Google Drive Audio Player */}
           <iframe
             id="duyen-ca-console-gdrive-player"
             src={gdriveId ? `https://drive.google.com/file/d/${gdriveId}/preview` : 'about:blank'}
             allow="autoplay"
             title="Studio Google Drive Player"
-            className="console-gdrive-iframe"
+            className="engine-iframe"
           />
-        </div>
 
-        {/* Embedded SoundCloud Player */}
-        <div className={`console-sc-box ${activeEngine === 'soundcloud' && soundcloudUrl ? 'console-sc-box--active' : ''}`}>
+          {/* SoundCloud Player */}
           <iframe
             id="duyen-ca-console-sc-player"
             src={
@@ -387,18 +380,16 @@ export const StudioConsole: React.FC = () => {
             }
             allow="autoplay"
             title="Studio SoundCloud Player"
-            className="console-sc-iframe"
+            className="engine-iframe"
           />
-        </div>
 
-        {/* Embedded Spotify Player */}
-        <div className={`console-spotify-box ${activeEngine === 'spotify' && spotifyId ? 'console-spotify-box--active' : ''}`}>
+          {/* Spotify Player */}
           <iframe
             id="duyen-ca-console-spotify-player"
             src={spotifyId ? `https://open.spotify.com/embed/track/${spotifyId}?utm_source=generator&theme=0` : 'about:blank'}
             allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture"
             title="Studio Spotify Player"
-            className="console-spotify-iframe"
+            className="engine-iframe"
           />
         </div>
       </footer>
