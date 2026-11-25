@@ -1658,6 +1658,69 @@
   color: var(--ink-2);
 }
 
+/* Local file cloud tip box in Add Track Modal */
+.local-file-cloud-tip-box {
+  background: var(--paper-2);
+  border: 1px solid rgba(212, 175, 55, 0.4);
+  border-left: 4px solid var(--gold);
+  border-radius: 10px;
+  padding: 0.85rem 1rem;
+  margin-top: 0.85rem;
+  font-size: 0.82rem;
+  line-height: 1.45;
+  color: var(--ink-2);
+}
+
+.local-file-cloud-tip-box .tip-header {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  color: var(--wine);
+  font-size: 0.86rem;
+  margin-bottom: 0.35rem;
+}
+
+.local-file-cloud-tip-box .tip-icon {
+  font-size: 1.1rem;
+}
+
+.local-file-cloud-tip-box .tip-desc {
+  margin: 0 0 0.45rem 0;
+  color: var(--ink-2);
+}
+
+.local-file-cloud-tip-box .tip-steps {
+  margin-bottom: 0.65rem;
+  color: var(--ink);
+}
+
+.local-file-cloud-tip-box .tip-actions {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.local-file-cloud-tip-box .tip-link-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.35rem 0.75rem;
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  color: var(--wine);
+  font-weight: 600;
+  font-size: 0.78rem;
+  text-decoration: none;
+  transition: all 0.15s ease;
+}
+
+.local-file-cloud-tip-box .tip-link-btn:hover {
+  background: var(--gold-soft);
+  border-color: var(--gold);
+  transform: translateY(-1px);
+}
+
 /* Trimmer Studio Box */
 .trimmer-studio-box {
   background: var(--paper-2);

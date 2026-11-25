@@ -243,20 +243,19 @@ export const AddTrackModal: React.FC<AddTrackModalProps> = ({
       pushToast('Vui lòng nhập đường dẫn Google Drive', 'error');
       return;
     }
+    const dId = extractDriveFileId(url);
+    if (!dId) {
+      pushToast('Đường dẫn Google Drive không hợp lệ', 'error');
+      return;
+    }
     setIsUploading(true);
     try {
-      const res = await importGoogleDriveAudio(url, title || 'DriveAudio.mp3');
-      if (res.ok && res.audio) {
-        setUploadedAudioId(res.audio.id);
-        setUrl(res.audio.url);
-        if (!title) setTitle(res.audio.name);
-        pushToast('Đã kéo tệp từ Google Drive về máy chủ thành công!', 'success');
-      } else {
-        // Fallback: use direct Google Drive stream URL
-        await handleAutoDetectLink(url, false);
-      }
+      // Connect directly to 24/7 cloud stream, do not store on local disk
+      setUploadedAudioId(null);
+      await handleAutoDetectLink(url, false);
+      pushToast('Đã kết nối luồng phát 24/7 từ Google Drive thành công!', 'success');
     } catch (err: any) {
-      pushToast('Lỗi nhập Google Drive: ' + err.message, 'error');
+      pushToast('Lỗi nhận diện Google Drive: ' + err.message, 'error');
     } finally {
       setIsUploading(false);
     }
@@ -274,10 +273,10 @@ export const AddTrackModal: React.FC<AddTrackModalProps> = ({
     }
 
     const driveId = extractDriveFileId(url);
-    const resolvedUrl = uploadedAudioId
-      ? `/api/audio/${uploadedAudioId}`
-      : driveId
+    const resolvedUrl = driveId
       ? `/api/gdrive/stream?id=${driveId}`
+      : uploadedAudioId
+      ? `/api/audio/${uploadedAudioId}`
       : url.trim();
 
     addTrack({
@@ -502,6 +501,30 @@ export const AddTrackModal: React.FC<AddTrackModalProps> = ({
                   style={{ display: 'none' }}
                   onChange={handleFileChosen}
                 />
+              </div>
+
+              {/* Important 24/7 Cloud Guidance Box */}
+              <div className="local-file-cloud-tip-box">
+                <div className="tip-header">
+                  <span className="tip-icon">☁️</span>
+                  <b>Cách phát nhạc từ máy tính 24/7 trên Điện thoại (kể cả khi TẮT máy tính):</b>
+                </div>
+                <p className="tip-desc">
+                  File nhạc chọn trực tiếp từ máy tính chỉ nằm trên ổ cứng này. Khi <b>tắt máy tính</b>, điện thoại sẽ không thể lấy nhạc từ máy tính đã tắt.
+                </p>
+                <div className="tip-steps">
+                  <div>👉 <b>Giải pháp chuẩn nhất:</b> Kéo các file nhạc trên máy tính thả vào <b>Google Drive</b> (miễn phí 15GB), bật quyền <i>"Bất kỳ ai có liên kết"</i>, sau đó dán link vào tab <b>Google Drive</b>.</div>
+                </div>
+                <div className="tip-actions">
+                  <a
+                    href="https://drive.google.com"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="tip-link-btn"
+                  >
+                    📂 Mở Google Drive để tải nhạc lên (15GB miễn phí) ↗
+                  </a>
+                </div>
               </div>
             </div>
           )}
