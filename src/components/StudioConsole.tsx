@@ -140,7 +140,6 @@ export const StudioConsole: React.FC = () => {
               type="button"
               className="mini-btn-play"
               onClick={togglePlay}
-              disabled={loading}
               title={isPlaying ? 'Tạm dừng' : 'Phát nhạc'}
             >
               {loading ? <span className="mini-spinner" /> : isPlaying ? <PauseIcon className="w-5 h-5" /> : <PlayIcon className="w-5 h-5" />}
@@ -239,7 +238,6 @@ export const StudioConsole: React.FC = () => {
                 type="button"
                 className="console-btn-play"
                 onClick={togglePlay}
-                disabled={loading}
                 title={isPlaying ? 'Tạm dừng (Space)' : 'Phát nhạc'}
               >
                 {loading ? (
@@ -350,7 +348,7 @@ export const StudioConsole: React.FC = () => {
             src={
               activeEngine === 'youtube' && youtubeId && !youtubeId.startsWith('search:')
                 ? `https://www.youtube-nocookie.com/embed/${youtubeId}?enablejsapi=1&autoplay=1&start=${Math.floor(
-                    mode === 'clip' ? currentTrack.trimStart || 0 : 0
+                    mode === 'clip' ? currentTrack?.trimStart || 0 : 0
                   )}`
                 : 'about:blank'
             }
@@ -459,7 +457,6 @@ export const StudioConsole: React.FC = () => {
                 type="button"
                 className="sheet-btn-play"
                 onClick={togglePlay}
-                disabled={loading}
               >
                 {loading ? <span className="mini-spinner" /> : isPlaying ? <PauseIcon className="w-10 h-10" /> : <PlayIcon className="w-10 h-10" />}
               </button>

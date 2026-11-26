@@ -46,7 +46,7 @@ export const TrackItem: React.FC<TrackItemProps> = ({
 
   const handlePlayClip = (e: React.MouseEvent) => {
     e.stopPropagation();
-    if (isCurrent) {
+    if (isPlayingNow) {
       togglePlay();
     } else {
       playTrack(track, 'clip');

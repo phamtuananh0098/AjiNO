@@ -348,11 +348,15 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
         setIsPlaying(true);
         setLoading(false);
 
-        setTimeout(() => {
-          sendYtCommand('seekTo', [startPos, true]);
-          sendYtCommand('playVideo');
-          applyAudioVolume(volume, isMuted, track.volumeOffset || 0);
-        }, 120);
+        // Sequence of play commands to ensure YouTube iframe starts immediately on first click
+        const playSeq = [150, 400, 750, 1200, 1800];
+        playSeq.forEach((delay) => {
+          setTimeout(() => {
+            sendYtCommand('seekTo', [startPos, true]);
+            sendYtCommand('playVideo');
+            applyAudioVolume(volume, isMuted, track.volumeOffset || 0);
+          }, delay);
+        });
 
         startTicker(startPos, track);
         pushToast(`Đang phát đoạn nhạc YouTube: "${track.title}"`, 'success');
@@ -397,69 +401,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
         return;
       }
 
-      // 4. Google Drive Audio Engine (Streaming via /api/gdrive/stream)
-      const driveId = extractDriveFileId(track.url);
-      if (driveId && !track.audioId) {
-        setYoutubeId(null);
-        sendYtCommand('stopVideo');
-        setSoundcloudUrl(null);
-        setSpotifyId(null);
-        setActiveEngine('audio');
-        setGdriveId(null);
-
-        if (!audio) return;
-
-        const streamUrl = getGoogleDriveStreamUrl(driveId);
-        const currentSrc = audio.src || '';
-        if (!currentSrc.endsWith(streamUrl)) {
-          audio.src = streamUrl;
-          audio.load();
-        }
-
-        audio.currentTime = startPos;
-        applyAudioVolume(volume, isMuted, track.volumeOffset || 0);
-
-        audio
-          .play()
-          .then(() => {
-            setIsPlaying(true);
-            setLoading(false);
-          })
-          .catch((err) => {
-            console.error('[gdrive-play-error]', err);
-            setIsPlaying(false);
-            setLoading(false);
-            pushToast(
-              `Không thể phát tệp Google Drive ("${track.title}"). Vui lòng kiểm tra quyền chia sẻ "Bất kỳ ai có đường liên kết" trên Google Drive!`,
-              'error'
-            );
-          });
-        return;
-      }
-
-      // 5. Unplayable Web Music Link (ZingMP3, NCT, generic web pages)
-      const isDirect = isDirectAudioUrl(track.url) || !!track.audioId;
-      if (!isDirect && track.url && /^https?:\/\//i.test(track.url)) {
-        const query = `${track.title} ${track.artist || ''}`.trim();
-        if (query) {
-          if (audio) {
-            audio.pause();
-            audio.src = '';
-          }
-          setActiveEngine('youtube');
-          setGdriveId(null);
-          setSoundcloudUrl(null);
-          setSpotifyId(null);
-          setYoutubeId(`search:${encodeURIComponent(query)}`);
-          setIsPlaying(true);
-          setLoading(false);
-          startTicker(startPos, track);
-          pushToast(`✨ Đang phát bài hát: "${track.title}"`, 'success');
-          return;
-        }
-      }
-
-      // 6. Standard HTML5 Audio (Local / Uploaded / Direct MP3)
+      // 4. HTML5 Audio Engine (Google Drive CDN stream, Studio uploaded audio, Direct MP3/M4A/WAV)
       setActiveEngine('audio');
       setYoutubeId(null);
       sendYtCommand('stopVideo');
@@ -468,26 +410,67 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
       setSpotifyId(null);
 
       if (!audio) return;
+
       const sourceUrl = resolvePlayableAudioUrl(track);
-      if (audio.src !== sourceUrl) {
-        audio.src = sourceUrl;
-        audio.load();
+      let isSameSource = false;
+      try {
+        const absSourceUrl = new URL(sourceUrl, window.location.href).href;
+        isSameSource = audio.src === absSourceUrl;
+      } catch {
+        isSameSource = audio.src.endsWith(sourceUrl);
       }
 
-      audio.currentTime = startPos;
       applyAudioVolume(volume, isMuted, track.volumeOffset || 0);
 
-      audio
-        .play()
-        .then(() => {
-          setIsPlaying(true);
-          setLoading(false);
-        })
-        .catch((err) => {
-          setLoading(false);
-          setIsPlaying(false);
-          console.warn('Audio playback error:', err);
-        });
+      if (!isSameSource) {
+        audio.src = sourceUrl;
+      }
+
+      // Safe seeking: only set currentTime when metadata is ready so we don't abort the initial load
+      if (startPos > 0) {
+        if (audio.readyState >= 1) {
+          audio.currentTime = startPos;
+        } else {
+          const seekOnMetadata = () => {
+            audio.currentTime = startPos;
+            audio.removeEventListener('loadedmetadata', seekOnMetadata);
+          };
+          audio.addEventListener('loadedmetadata', seekOnMetadata);
+        }
+      } else if (!isSameSource && audio.readyState >= 1) {
+        audio.currentTime = 0;
+      }
+
+      // Synchronously call play() inside the user gesture
+      const playPromise = audio.play();
+      if (playPromise !== undefined) {
+        playPromise
+          .then(() => {
+            setIsPlaying(true);
+            setLoading(false);
+          })
+          .catch((err) => {
+            // If interrupted by transient state change, auto-retry once
+            if (err && err.name === 'AbortError') {
+              console.warn('[playTrack] Play was interrupted, auto-retrying once...');
+              audio.play().then(() => {
+                setIsPlaying(true);
+                setLoading(false);
+              }).catch(() => {
+                setIsPlaying(false);
+                setLoading(false);
+              });
+              return;
+            }
+            console.error('[Audio play error]', err);
+            setIsPlaying(false);
+            setLoading(false);
+            pushToast(
+              `Không thể phát bài hát ("${track.title}"). Vui lòng kiểm tra lại quyền truy cập hoặc đường dẫn nguồn.`,
+              'error'
+            );
+          });
+      }
     },
     [mode, volume, isMuted, applyAudioVolume, pushToast, playlist.meta.couple, startTicker, stopTicker]
   );
@@ -526,14 +509,36 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
 
     if (isPlaying) {
       audio.pause();
+      setIsPlaying(false);
     } else {
       if (currentTrack) {
-        audio.play().catch(() => {});
+        const sourceUrl = resolvePlayableAudioUrl(currentTrack);
+        let isSameSource = false;
+        try {
+          const absUrl = new URL(sourceUrl, window.location.href).href;
+          isSameSource = audio.src === absUrl;
+        } catch {
+          isSameSource = audio.src.endsWith(sourceUrl);
+        }
+
+        if (!isSameSource) {
+          playTrack(currentTrack);
+          return;
+        }
+
+        // If track ended at trimEnd, rewind to trimStart before playing
+        if (mode === 'clip' && currentTrack.trimEnd && audio.currentTime >= currentTrack.trimEnd - 0.2) {
+          audio.currentTime = currentTrack.trimStart || 0;
+        }
+
+        audio.play().then(() => setIsPlaying(true)).catch(() => {
+          playTrack(currentTrack);
+        });
       } else if (playlist.tracks.length > 0) {
         playTrack(playlist.tracks[0]);
       }
     }
-  }, [activeEngine, isPlaying, currentTrack, currentTime, playlist.tracks, playTrack, startTicker, stopTicker]);
+  }, [activeEngine, isPlaying, currentTrack, currentTime, playlist.tracks, playTrack, startTicker, stopTicker, mode]);
 
   const pause = useCallback(() => {
     if (activeEngine === 'youtube') {
